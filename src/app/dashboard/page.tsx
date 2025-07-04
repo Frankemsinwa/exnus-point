@@ -33,8 +33,13 @@ export default function DashboardPage() {
   }, [publicKey]);
 
   const setBalance = (newBalance: number) => {
-      if(user) {
+      if(user && stats) {
+          const pointsDifference = newBalance - user.points;
           setUser({...user, points: newBalance});
+          setStats({
+              ...stats,
+              totalPointsMined: stats.totalPointsMined + pointsDifference
+          });
       }
   }
 
