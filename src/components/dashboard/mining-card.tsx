@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Zap, Loader2, Twitter, PartyPopper, Send, Check } from 'lucide-react';
+import { Zap, Loader2, Twitter, Send, Check } from 'lucide-react';
 import { buildStyles, CircularProgressbar } from 'react-circular-progressbar';
 import 'react-circular-progressbar/dist/styles.css';
 import type { User } from '@/lib/db';
@@ -35,24 +35,35 @@ export function MiningCard({ user, onRewardClaimed }: MiningCardProps) {
   const [miningEndTime, setMiningEndTime] = useState<number | null>(null);
   const [timeLeft, setTimeLeft] = useState(0);
   const [tasksCompleted, setTasksCompleted] = useState(user.tasksCompleted);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isClaimable, setIsClaimable] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [verifyingTasks, setVerifyingTasks] = useState<Set<string>>(new Set());
+
+  const handleClaimReward = useCallback(async () => {
+      if (!publicKey) return;
+      setIsProcessing(true);
+      const result = await claimReward(publicKey.toBase58());
+      if (result.success) {
+          onRewardClaimed(); // Refetch data from parent
+          toast({ title: "Session Complete!", description: result.message });
+      } else {
+          toast({ variant: 'destructive', title: 'Claim Failed', description: result.message });
+      }
+      setIsProcessing(false);
+  }, [publicKey, onRewardClaimed, toast]);
 
   useEffect(() => {
     if (user.miningEndTime && Date.now() < user.miningEndTime) {
         setIsMining(true);
         setMiningEndTime(user.miningEndTime);
-        setIsClaimable(false);
     } else if (user.miningEndTime && Date.now() >= user.miningEndTime) {
+        // If the page is loaded after mining finished, claim immediately.
+        handleClaimReward();
         setIsMining(false);
-        setIsClaimable(true);
     } else {
         setIsMining(false);
-        setIsClaimable(false);
     }
     setTasksCompleted(user.tasksCompleted);
-  }, [user.miningEndTime, user.tasksCompleted]);
+  }, [user.miningEndTime, user.tasksCompleted, handleClaimReward]);
 
   useEffect(() => {
     if (isMining && miningEndTime) {
@@ -63,17 +74,16 @@ export function MiningCard({ user, onRewardClaimed }: MiningCardProps) {
           clearInterval(interval);
           setTimeLeft(0);
           setIsMining(false);
-          setIsClaimable(true);
-          toast({ title: "Mining Complete!", description: `Ready to claim ${POINTS_PER_SESSION} points.` });
+          handleClaimReward();
         } else {
           setTimeLeft(remaining);
         }
       }, 1000);
       return () => clearInterval(interval);
     }
-  }, [isMining, miningEndTime, toast]);
+  }, [isMining, miningEndTime, handleClaimReward]);
 
-  const handleCompleteTask = (taskId: 'task1' | 'task2' | 'task3', link: string) => {
+  const handleCompleteTask = useCallback((taskId: 'task1' | 'task2' | 'task3', link: string) => {
     if (!publicKey) return;
 
     window.open(link, '_blank');
@@ -90,17 +100,17 @@ export function MiningCard({ user, onRewardClaimed }: MiningCardProps) {
         onRewardClaimed(); // Refetch data
         toast({ title: "Task Verified!", description: "Thank you for completing the task." });
     }, 50000); // 50 seconds
-  };
+  }, [publicKey, onRewardClaimed, toast]);
 
   const allTasksCompleted = Object.values(tasksCompleted).every(Boolean);
 
-  const handleActivateMining = async () => {
+  const handleActivateMining = useCallback(async () => {
     if (!publicKey || !signMessage) {
       toast({ variant: 'destructive', title: 'Wallet not connected', description: 'Please connect your wallet to start mining.' });
       return;
     }
 
-    setIsLoading(true);
+    setIsProcessing(true);
     try {
       const message = new TextEncoder().encode("Activate EXNUS POINTS mining for 24 hours.");
       await signMessage(message);
@@ -117,59 +127,49 @@ export function MiningCard({ user, onRewardClaimed }: MiningCardProps) {
       console.error("Sign message error:", error);
       toast({ variant: 'destructive', title: 'Signature Failed', description: 'The signature request was rejected. Please try again.' });
     } finally {
-      setIsLoading(false);
+      setIsProcessing(false);
     }
-  };
-
-  const handleClaimReward = async () => {
-      if (!publicKey) return;
-      setIsLoading(true);
-      const result = await claimReward(publicKey.toBase58());
-      if (result.success) {
-          onRewardClaimed(); // Refetch data from parent
-          toast({ title: "Success!", description: result.message });
-      } else {
-          toast({ variant: 'destructive', title: 'Claim Failed', description: result.message });
-      }
-      setIsLoading(false);
-  }
+  }, [publicKey, signMessage, onRewardClaimed, toast]);
 
   const hours = Math.floor((timeLeft / (1000 * 60 * 60)) % 24);
   const minutes = Math.floor((timeLeft / (1000 * 60)) % 60);
   const seconds = Math.floor((timeLeft / 1000) % 60);
 
   const percentage = miningEndTime ? ((MINE_DURATION_MS - timeLeft) / MINE_DURATION_MS) * 100 : 0;
+  const minedSoFar = isMining ? percentage / 100 * POINTS_PER_SESSION : 0;
 
   return (
     <Card className="h-full flex flex-col">
       <CardHeader>
         <CardTitle className="font-headline text-2xl">Mining Hub</CardTitle>
         <CardDescription>Your available points balance: <span className="text-accent font-bold">{user.points.toLocaleString()} POINTS</span></CardDescription>
+        <CardDescription className="pt-2 text-xs">
+            Complete tasks, then activate mining for a 24-hour session. Points are automatically claimed when the session ends.
+        </CardDescription>
       </CardHeader>
       <CardContent className="flex-grow flex flex-col items-center justify-center text-center gap-6">
         {isMining ? (
-          <div className="w-48 h-48 relative">
-            <CircularProgressbar
-                value={percentage}
-                strokeWidth={6}
-                styles={buildStyles({
-                    pathColor: `hsl(var(--accent))`,
-                    textColor: `hsl(var(--foreground))`,
-                    trailColor: `hsl(var(--muted))`,
-                    backgroundColor: '#3e98c7',
-                })}
-            />
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <div className="text-3xl font-bold">{`${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`}</div>
-                <div className="text-sm text-muted-foreground">TIME LEFT</div>
+          <div className="flex flex-col items-center justify-center text-center gap-2">
+            <div className="w-48 h-48 relative">
+                <CircularProgressbar
+                    value={percentage}
+                    strokeWidth={6}
+                    styles={buildStyles({
+                        pathColor: `hsl(var(--accent))`,
+                        textColor: `hsl(var(--foreground))`,
+                        trailColor: `hsl(var(--muted))`,
+                    })}
+                />
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <div className="text-3xl font-bold">{`${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`}</div>
+                    <div className="text-sm text-muted-foreground">TIME LEFT</div>
+                </div>
+            </div>
+            <div className="mt-2 text-center">
+              <div className="text-2xl font-bold text-accent">{Math.floor(minedSoFar).toLocaleString()}</div>
+              <div className="text-sm text-muted-foreground">POINTS MINED</div>
             </div>
           </div>
-        ) : isClaimable ? (
-            <div className="flex flex-col items-center gap-4">
-                <PartyPopper className="h-24 w-24 text-accent" />
-                <h3 className="text-xl font-bold">Mining Session Complete!</h3>
-                <p className="text-muted-foreground">Claim your {POINTS_PER_SESSION.toLocaleString()} points.</p>
-            </div>
         ) : (
           <div className="w-full space-y-4">
             <h3 className="text-lg font-semibold">Complete tasks to start mining</h3>
@@ -214,29 +214,18 @@ export function MiningCard({ user, onRewardClaimed }: MiningCardProps) {
         )}
       </CardContent>
       <CardFooter>
-        {isClaimable ? (
-            <Button
-                className="w-full bg-accent text-accent-foreground hover:bg-accent/90"
-                onClick={handleClaimReward}
-                disabled={isLoading}
-            >
-                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PartyPopper className="mr-2 h-4 w-4" />}
-                Claim Reward
-            </Button>
-        ) : (
-            <Button 
-              className="w-full bg-accent text-accent-foreground hover:bg-accent/90"
-              onClick={handleActivateMining}
-              disabled={!allTasksCompleted || isMining || isLoading}
-            >
-              {isLoading ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Zap className="mr-2 h-4 w-4" />
-              )}
-              {isMining ? 'Mining Active' : 'Activate Mining'}
-            </Button>
-        )}
+        <Button 
+            className="w-full bg-accent text-accent-foreground hover:bg-accent/90"
+            onClick={handleActivateMining}
+            disabled={!allTasksCompleted || isMining || isProcessing}
+        >
+            {isProcessing && !isMining ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+            <Zap className="mr-2 h-4 w-4" />
+            )}
+            {isMining ? 'Mining Active' : 'Activate Mining'}
+        </Button>
       </CardFooter>
     </Card>
   );
