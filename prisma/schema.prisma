@@ -1,0 +1,34 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("POSTGRES_URL")
+}
+
+model User {
+  publicKey              String    @id @db.VarChar(44)
+  points                 Int       @default(0)
+  miningEndTime          BigInt?
+  task1                  Boolean   @default(false)
+  task2                  Boolean   @default(false)
+  task3                  Boolean   @default(false)
+  referralCode           String    @unique @db.VarChar(6)
+  referredBy             String?   @db.VarChar(44)
+  referredUsersCount     Int       @default(0)
+  referralBonus          Int       @default(0)
+  lastClaimed            BigInt?
+  username               String    @db.VarChar(13)
+  referralBonusProcessed Boolean   @default(false)
+
+  // Define the self-relation for referrals
+  referrer         User?   @relation("UserReferrals", fields: [referredBy], references: [publicKey], onDelete: NoAction, onUpdate: NoAction)
+  referredUsers    User[]  @relation("UserReferrals")
+
+  @@index([referredBy])
+}
