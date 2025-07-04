@@ -25,15 +25,15 @@ interface UserDocument {
 export type User = WithId<UserDocument>;
 
 let client: MongoClient;
-let db: Db;
+let mongoDbInstance: Db;
 let users: Collection<UserDocument>;
 
 async function init() {
-  if (db) return;
+  if (mongoDbInstance) return;
   try {
     client = await clientPromise;
-    db = client.db(); // This will use the database specified in your connection string
-    users = db.collection<UserDocument>('users');
+    mongoDbInstance = client.db(); // This will use the database specified in your connection string
+    users = mongoDbInstance.collection<UserDocument>('users');
   } catch (error) {
     console.error("Failed to connect to the database", error);
     throw new Error('Failed to connect to the database.');
@@ -51,7 +51,6 @@ const generateUniqueReferralCode = async (): Promise<string> => {
     let isUnique = false;
     do {
         code = Math.floor(100000 + Math.random() * 900000).toString();
-        // Use countDocuments for efficiency
         if ((await users.countDocuments({ referralCode: code })) === 0) {
             isUnique = true;
         }
@@ -100,15 +99,12 @@ const getOrCreateUser = async (publicKey: string, referralCode?: string | null):
     return createdUser as User;
 }
 
-export const db = {
-  getUser: async (publicKey: string, referralCode?: string | null): Promise<User> => {
-    return getOrCreateUser(publicKey, referralCode);
-  },
-  getUserByPublicKey: async (publicKey: string): Promise<User | null> => {
+const getUserByPublicKey = async (publicKey: string): Promise<User | null> => {
     await init();
     return users.findOne({ publicKey });
-  },
-  updateUser: async (publicKey: string, data: Partial<UserDocument>): Promise<User | null> => {
+};
+
+const updateUser = async (publicKey: string, data: Partial<UserDocument>): Promise<User | null> => {
     await init();
     const result = await users.findOneAndUpdate(
       { publicKey },
@@ -116,22 +112,33 @@ export const db = {
       { returnDocument: 'after' }
     );
     return result;
-  },
-  getLeaderboard: async (): Promise<User[]> => {
+};
+
+const getLeaderboard = async (): Promise<User[]> => {
     await init();
-    // Limit to top 100 for performance
     return users.find().sort({ points: -1 }).limit(100).toArray();
-  },
-  getTotalMined: async (): Promise<number> => {
+};
+
+const getTotalMined = async (): Promise<number> => {
     await init();
     const result = await users.aggregate([
       { $group: { _id: null, total: { $sum: '$points' } } }
     ]).toArray();
     return result.length > 0 ? result[0].total : 0;
-  },
-  getActiveMiners: async (): Promise<number> => {
+};
+
+const getActiveMiners = async (): Promise<number> => {
     await init();
     const now = Date.now();
     return users.countDocuments({ miningEndTime: { $gt: now } });
-  }
+};
+
+
+export const db = {
+    getUser: getOrCreateUser,
+    getUserByPublicKey,
+    updateUser,
+    getLeaderboard,
+    getTotalMined,
+    getActiveMiners
 };
