@@ -14,6 +14,7 @@ export interface User {
   referralBonus: number;
   lastClaimed: number | null;
   username: string;
+  referralBonusProcessed: boolean;
 }
 
 const users: Map<string, User> = new Map();
@@ -29,32 +30,50 @@ const generateUniqueReferralCode = (): string => {
     return code;
 }
 
-const getOrCreateUser = (publicKey: string): User => {
-  if (!users.has(publicKey)) {
-    const newUser: User = {
-      publicKey,
-      points: 0,
-      miningEndTime: null,
-      tasksCompleted: {
-        task1: false,
-        task2: false,
-        task3: false,
-      },
-      referralCode: generateUniqueReferralCode(),
-      referredBy: null,
-      referredUsersCount: 0,
-      referralBonus: 0,
-      lastClaimed: null,
-      username: `${publicKey.slice(0, 4)}...${publicKey.slice(-4)}`
-    };
-    users.set(publicKey, newUser);
+const getOrCreateUser = (publicKey: string, referralCode?: string | null): User => {
+  if (users.has(publicKey)) {
+    return users.get(publicKey)!;
   }
-  return users.get(publicKey)!;
+  
+  const newUser: User = {
+    publicKey,
+    points: 0,
+    miningEndTime: null,
+    tasksCompleted: {
+      task1: false,
+      task2: false,
+      task3: false,
+    },
+    referralCode: generateUniqueReferralCode(),
+    referredBy: null,
+    referredUsersCount: 0,
+    referralBonus: 0,
+    lastClaimed: null,
+    username: `${publicKey.slice(0, 4)}...${publicKey.slice(-4)}`,
+    referralBonusProcessed: false,
+  };
+
+  if (referralCode) {
+      const referrer = Array.from(users.values()).find(u => u.referralCode === referralCode);
+      // Ensure referrer exists and is not the user themselves
+      if (referrer && referrer.publicKey !== publicKey) {
+          newUser.referredBy = referrer.publicKey;
+          // Update referrer's data
+          const updatedReferrer = {
+              ...referrer,
+              referredUsersCount: referrer.referredUsersCount + 1,
+          };
+          users.set(referrer.publicKey, updatedReferrer);
+      }
+  }
+
+  users.set(publicKey, newUser);
+  return newUser;
 };
 
 export const db = {
-  getUser: (publicKey: string): User => {
-    return getOrCreateUser(publicKey);
+  getUser: (publicKey: string, referralCode?: string | null): User => {
+    return getOrCreateUser(publicKey, referralCode);
   },
   updateUser: (publicKey: string, data: Partial<User>): User => {
     const user = getOrCreateUser(publicKey);

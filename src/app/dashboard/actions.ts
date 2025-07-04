@@ -1,3 +1,4 @@
+
 'use server';
 
 import { db, User } from '@/lib/db';
@@ -9,10 +10,10 @@ export async function getUserData(publicKey: string): Promise<User | null> {
     return db.getUser(publicKey);
 }
 
-export async function getDashboardData(publicKey: string) {
+export async function getDashboardData(publicKey: string, referralCode?: string | null) {
     if (!publicKey) return null;
 
-    const user = db.getUser(publicKey);
+    const user = db.getUser(publicKey, referralCode);
     const allUsers = db.getLeaderboard();
     const rank = allUsers.findIndex(u => u.publicKey === publicKey) + 1;
 
@@ -40,8 +41,22 @@ export async function activateMining(publicKey: string): Promise<{ success: bool
         return { success: false, message: 'Mining is already active.' };
     }
 
-    const endTime = Date.now() + MINE_DURATION_MS;
-    db.updateUser(publicKey, { miningEndTime: endTime });
+    const updates: Partial<User> = { miningEndTime: Date.now() + MINE_DURATION_MS };
+
+    // Handle referral bonus on first activation
+    if (user.referredBy && !user.referralBonusProcessed) {
+        const referrer = db.getUser(user.referredBy);
+        if (referrer) {
+            const bonus = 100;
+            db.updateUser(referrer.publicKey, {
+                points: referrer.points + bonus,
+                referralBonus: referrer.referralBonus + bonus,
+            });
+        }
+        updates.referralBonusProcessed = true;
+    }
+
+    db.updateUser(publicKey, updates);
     
     revalidatePath('/dashboard');
     return { success: true, message: 'Mining activated!' };
@@ -108,7 +123,7 @@ export async function getReferralPageData(publicKey: string) {
     if (!publicKey) return null;
     const user = db.getUser(publicKey);
     
-    const referralLink = `https://exnus.points/join?ref=${user.referralCode}`;
+    const referralLink = `https://points.exnus.org/join?ref=${user.referralCode}`;
 
     return {
         referralLink,

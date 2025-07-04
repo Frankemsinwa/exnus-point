@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
@@ -22,10 +23,15 @@ export default function DashboardPage() {
 
   const fetchDashboardData = useCallback(() => {
     if (publicKey) {
-      getDashboardData(publicKey.toBase58()).then(data => {
+      const referralCode = sessionStorage.getItem('referralCode');
+      getDashboardData(publicKey.toBase58(), referralCode).then(data => {
         if (data) {
           setUser(data.user);
           setStats(data.stats);
+        }
+        // Once used, remove it to prevent re-applying it on refresh
+        if (referralCode) {
+            sessionStorage.removeItem('referralCode');
         }
         setLoading(false);
       });

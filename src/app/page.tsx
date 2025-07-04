@@ -1,7 +1,8 @@
+
 "use client";
 
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { AppHeader } from '@/components/shared/header';
@@ -13,6 +14,14 @@ import { CheckCircle, Gift, Zap } from 'lucide-react';
 export default function Home() {
   const { connected } = useWallet();
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const refCode = searchParams.get('ref');
+    if (refCode) {
+      sessionStorage.setItem('referralCode', refCode);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (connected) {
