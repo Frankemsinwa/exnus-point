@@ -1,1 +1,4 @@
-{"users":[["5Gy5qYXhYs7aPfEztAG6vTPVow5snudPksBvF5DAYLpX",{"publicKey":"5Gy5qYXhYs7aPfEztAG6vTPVow5snudPksBvF5DAYLpX","points":0,"miningEndTime":null,"tasksCompleted":{"task1":false,"task2":false,"task3":false},"referralCode":"174792","referredBy":null,"referredUsersCount":0,"referralBonus":0,"lastClaimed":null,"username":"5Gy5...YLpX","referralBonusProcessed":false}],["FNzf4sZ7GZHJYEa3FngDtjdJSR45h2Qsq8RbHinDjc1t",{"publicKey":"FNzf4sZ7GZHJYEa3FngDtjdJSR45h2Qsq8RbHinDjc1t","points":0,"miningEndTime":null,"tasksCompleted":{"task1":false,"task2":false,"task3":false},"referralCode":"309435","referredBy":null,"referredUsersCount":0,"referralBonus":0,"lastClaimed":null,"username":"FNzf...jc1t","referralBonusProcessed":false}]],"referralCodeToPublicKey":[["174792","5Gy5qYXhYs7aPfEztAG6vTPVow5snudPksBvF5DAYLpX"],["309435","FNzf4sZ7GZHJYEa3FngDtjdJSR45h2Qsq8RbHinDjc1t"]]}
+{
+    "users": [],
+    "referralCodeToPublicKey": []
+}

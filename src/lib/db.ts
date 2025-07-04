@@ -1,37 +1,62 @@
-import { PrismaClient, User as PrismaUser } from '@prisma/client';
+import { promises as fs } from 'fs';
+import path from 'path';
 
-// Add tasksCompleted to the Prisma-generated User type for compatibility with the frontend
-export type User = PrismaUser & {
+export type User = {
+    publicKey: string;
+    points: number;
+    miningEndTime: number | null;
     tasksCompleted: {
         task1: boolean;
         task2: boolean;
         task3: boolean;
     };
+    referralCode: string;
+    referredBy: string | null;
+    referredUsersCount: number;
+    referralBonus: number;
+    lastClaimed: number | null;
+    username: string;
+    referralBonusProcessed: boolean;
 };
 
-const prisma = new PrismaClient();
+type DBData = {
+    users: [string, User][];
+    referralCodeToPublicKey: [string, string][];
+};
 
-// Helper to convert Prisma User to our extended User type
-function toAppUser(user: PrismaUser): User {
-    return {
-        ...user,
-        tasksCompleted: {
-            task1: user.task1,
-            task2: user.task2,
-            task3: user.task3,
+const dbPath = path.join(process.cwd(), 'data', 'db.json');
+
+let memoryDb: DBData | null = null;
+
+async function readDb(): Promise<DBData> {
+    if (memoryDb) return memoryDb;
+    try {
+        const fileContent = await fs.readFile(dbPath, 'utf-8');
+        memoryDb = JSON.parse(fileContent);
+        return memoryDb!;
+    } catch (error: any) {
+        if (error.code === 'ENOENT') {
+            const initialDb: DBData = { users: [], referralCodeToPublicKey: [] };
+            await writeDb(initialDb);
+            memoryDb = initialDb;
+            return memoryDb;
         }
-    };
+        throw error;
+    }
 }
 
-const generateUniqueReferralCode = async (): Promise<string> => {
+async function writeDb(data: DBData): Promise<void> {
+    memoryDb = data;
+    await fs.writeFile(dbPath, JSON.stringify(data, null, 2), 'utf-8');
+}
+
+const generateUniqueReferralCode = async (data: DBData): Promise<string> => {
     let code: string;
     let isUnique = false;
+    const referralCodes = new Set(data.referralCodeToPublicKey.map(([c]) => c));
     do {
         code = Math.floor(100000 + Math.random() * 900000).toString();
-        const existingUser = await prisma.user.findUnique({
-            where: { referralCode: code },
-        });
-        if (!existingUser) {
+        if (!referralCodes.has(code)) {
             isUnique = true;
         }
     } while (!isUnique);
@@ -39,94 +64,102 @@ const generateUniqueReferralCode = async (): Promise<string> => {
 };
 
 const getOrCreateUser = async (publicKey: string, referralCode?: string | null): Promise<User> => {
-    const existingUser = await prisma.user.findUnique({
-        where: { publicKey },
-    });
+    const data = await readDb();
+    const userMap = new Map(data.users);
 
-    if (existingUser) {
-        return toAppUser(existingUser);
+    if (userMap.has(publicKey)) {
+        return userMap.get(publicKey)!;
     }
 
     // New user logic
-    const newReferralCode = await generateUniqueReferralCode();
+    const newReferralCode = await generateUniqueReferralCode(data);
     const username = `${publicKey.slice(0, 4)}...${publicKey.slice(-4)}`;
-    let referredByPublicKey: string | null = null;
+    
+    const newUser: User = {
+        publicKey,
+        points: 0,
+        miningEndTime: null,
+        tasksCompleted: { task1: false, task2: false, task3: false },
+        referralCode: newReferralCode,
+        referredBy: null,
+        referredUsersCount: 0,
+        referralBonus: 0,
+        lastClaimed: null,
+        username,
+        referralBonusProcessed: false,
+    };
 
     // Handle referral if code is provided
     if (referralCode) {
-        const referrer = await prisma.user.findUnique({
-            where: { referralCode },
-        });
-        if (referrer && referrer.publicKey !== publicKey) {
-            referredByPublicKey = referrer.publicKey;
-            await prisma.user.update({
-                where: { publicKey: referredByPublicKey },
-                data: { referredUsersCount: { increment: 1 } },
-            });
+        const referralMap = new Map(data.referralCodeToPublicKey);
+        const referrerPublicKey = referralMap.get(referralCode);
+        
+        if (referrerPublicKey && referrerPublicKey !== publicKey) {
+            const referrer = userMap.get(referrerPublicKey);
+            if (referrer) {
+                newUser.referredBy = referrerPublicKey;
+                referrer.referredUsersCount += 1;
+                userMap.set(referrerPublicKey, referrer);
+            }
         }
     }
 
-    const newUser = await prisma.user.create({
-        data: {
-            publicKey,
-            referralCode: newReferralCode,
-            username,
-            referredBy: referredByPublicKey,
-        },
-    });
+    userMap.set(publicKey, newUser);
+    data.users = Array.from(userMap.entries());
+    data.referralCodeToPublicKey.push([newReferralCode, publicKey]);
 
-    return toAppUser(newUser);
+    await writeDb(data);
+
+    return newUser;
 };
 
 const getUserByPublicKey = async (publicKey: string): Promise<User | null> => {
-    const user = await prisma.user.findUnique({ where: { publicKey } });
-    return user ? toAppUser(user) : null;
+    const data = await readDb();
+    const userMap = new Map(data.users);
+    return userMap.get(publicKey) || null;
 };
 
-const updateUser = async (publicKey: string, data: Partial<PrismaUser & { tasksCompleted?: { task1?: boolean; task2?: boolean; task3?: boolean; } }>): Promise<User | null> => {
-    
-    // Flatten tasksCompleted into the main data object for Prisma
-    if (data.tasksCompleted) {
-        if (data.tasksCompleted.task1 !== undefined) data.task1 = data.tasksCompleted.task1;
-        if (data.tasksCompleted.task2 !== undefined) data.task2 = data.tasksCompleted.task2;
-        if (data.tasksCompleted.task3 !== undefined) data.task3 = data.tasksCompleted.task3;
-        delete data.tasksCompleted;
-    }
+const updateUser = async (publicKey: string, updates: Partial<User>): Promise<User | null> => {
+    const data = await readDb();
+    const userMap = new Map(data.users);
+    const user = userMap.get(publicKey);
 
-    try {
-        const updatedUser = await prisma.user.update({
-            where: { publicKey },
-            data,
-        });
-        return toAppUser(updatedUser);
-    } catch (error) {
-        console.error("Failed to update user:", error);
+    if (!user) {
         return null;
     }
+
+    const updatedUser = { ...user, ...updates };
+    userMap.set(publicKey, updatedUser);
+    data.users = Array.from(userMap.entries());
+
+    await writeDb(data);
+    return updatedUser;
 };
 
 const getLeaderboard = async (): Promise<User[]> => {
-    const users = await prisma.user.findMany({
-        orderBy: { points: 'desc' },
-        take: 100,
-    });
-    return users.map(toAppUser);
+    const data = await readDb();
+    const users = Array.from(new Map(data.users).values());
+    return users.sort((a, b) => b.points - a.points).slice(0, 100);
 };
 
 const getTotalMined = async (): Promise<number> => {
-    const aggregate = await prisma.user.aggregate({
-        _sum: { points: true },
-    });
-    return aggregate._sum.points || 0;
+    const data = await readDb();
+    const users = Array.from(new Map(data.users).values());
+    return users.reduce((sum, user) => sum + user.points, 0);
 };
 
 const getActiveMiners = async (): Promise<number> => {
-    const now = BigInt(Date.now());
-    const count = await prisma.user.count({
-        where: { miningEndTime: { gt: now } },
-    });
-    return count;
+    const data = await readDb();
+    const users = Array.from(new Map(data.users).values());
+    const now = Date.now();
+    return users.filter(user => user.miningEndTime && user.miningEndTime > now).length;
 };
+
+const getAllUsers = async (): Promise<User[]> => {
+    const data = await readDb();
+    return Array.from(new Map(data.users).values());
+};
+
 
 export const db = {
     getUser: getOrCreateUser,
@@ -135,4 +168,5 @@ export const db = {
     getLeaderboard,
     getTotalMined,
     getActiveMiners,
+    getAllUsers
 };
