@@ -10,7 +10,8 @@ import { Zap, Loader2, Twitter, MessageSquare, Heart, PartyPopper } from 'lucide
 import { buildStyles, CircularProgressbar } from 'react-circular-progressbar';
 import 'react-circular-progressbar/dist/styles.css';
 import type { User } from '@/lib/db';
-import { activateMining, completeTask, claimReward, MINE_DURATION_MS, POINTS_PER_SESSION } from '@/app/dashboard/actions';
+import { activateMining, completeTask, claimReward } from '@/app/dashboard/actions';
+import { MINE_DURATION_MS, POINTS_PER_SESSION } from '@/lib/constants';
 
 const tasks = [
     { id: 'task1', label: 'Follow on X', icon: Twitter },

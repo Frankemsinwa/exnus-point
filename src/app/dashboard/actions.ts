@@ -2,9 +2,7 @@
 
 import { db, User } from '@/lib/db';
 import { revalidatePath } from 'next/cache';
-
-export const MINE_DURATION_MS = 24 * 60 * 60 * 1000;
-export const POINTS_PER_SESSION = 1000;
+import { MINE_DURATION_MS, POINTS_PER_SESSION } from '@/lib/constants';
 
 export async function getUserData(publicKey: string): Promise<User | null> {
     if (!publicKey) return null;
