@@ -5,7 +5,7 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { Loader2, ShieldAlert } from 'lucide-react';
 import { AppHeader } from '@/components/shared/header';
 
-const ADMIN_WALLET = process.env.NEXT_PUBLIC_ADMIN_WALLET;
+const ADMIN_WALLETS_STRING = process.env.NEXT_PUBLIC_ADMIN_WALLET || '';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { publicKey, connecting } = useWallet();
@@ -14,8 +14,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   useEffect(() => {
     if (!connecting) {
-      if (publicKey && ADMIN_WALLET && publicKey.toBase58() === ADMIN_WALLET) {
-        setIsAuthorized(true);
+      if (publicKey && ADMIN_WALLETS_STRING) {
+        const adminWallets = ADMIN_WALLETS_STRING.split(',').map(wallet => wallet.trim());
+        const userWallet = publicKey.toBase58();
+        setIsAuthorized(adminWallets.includes(userWallet));
       } else {
         setIsAuthorized(false);
       }
@@ -40,7 +42,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <ShieldAlert className="h-16 w-16 text-destructive" />
               <h1 className="mt-4 text-2xl font-bold">Access Denied</h1>
               <p className="mt-2 text-muted-foreground">
-                  You are not authorized to view this page. Please connect the admin wallet.
+                  You are not authorized to view this page. Please connect an admin wallet.
               </p>
           </main>
       </div>

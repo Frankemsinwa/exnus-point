@@ -1,4 +1,78 @@
 {
-    "users": [],
-    "referralCodeToPublicKey": []
+  "users": [
+    [
+      "5Gy5qYXhYs7aPfEztAG6vTPVow5snudPksBvF5DAYLpX",
+      {
+        "publicKey": "5Gy5qYXhYs7aPfEztAG6vTPVow5snudPksBvF5DAYLpX",
+        "points": 0,
+        "miningEndTime": null,
+        "tasksCompleted": {
+          "task1": false,
+          "task2": false,
+          "task3": false
+        },
+        "referralCode": "221407",
+        "referredBy": null,
+        "referredUsersCount": 0,
+        "referralBonus": 0,
+        "lastClaimed": null,
+        "username": "5Gy5...YLpX",
+        "referralBonusProcessed": false
+      }
+    ],
+    [
+      "FNzf4sZ7GZHJYEa3FngDtjdJSR45h2Qsq8RbHinDjc1t",
+      {
+        "publicKey": "FNzf4sZ7GZHJYEa3FngDtjdJSR45h2Qsq8RbHinDjc1t",
+        "points": 0,
+        "miningEndTime": null,
+        "tasksCompleted": {
+          "task1": false,
+          "task2": false,
+          "task3": false
+        },
+        "referralCode": "648130",
+        "referredBy": null,
+        "referredUsersCount": 0,
+        "referralBonus": 0,
+        "lastClaimed": null,
+        "username": "FNzf...jc1t",
+        "referralBonusProcessed": false
+      }
+    ],
+    [
+      "9Kqt28pfMVBsBvXYYnYQCT2BZyorAwzbR6dUmgQfsZYW",
+      {
+        "publicKey": "9Kqt28pfMVBsBvXYYnYQCT2BZyorAwzbR6dUmgQfsZYW",
+        "points": 0,
+        "miningEndTime": null,
+        "tasksCompleted": {
+          "task1": false,
+          "task2": false,
+          "task3": false
+        },
+        "referralCode": "485985",
+        "referredBy": null,
+        "referredUsersCount": 0,
+        "referralBonus": 0,
+        "lastClaimed": null,
+        "username": "9Kqt...sZYW",
+        "referralBonusProcessed": false
+      }
+    ]
+  ],
+  "referralCodeToPublicKey": [
+    [
+      "221407",
+      "5Gy5qYXhYs7aPfEztAG6vTPVow5snudPksBvF5DAYLpX"
+    ],
+    [
+      "648130",
+      "FNzf4sZ7GZHJYEa3FngDtjdJSR45h2Qsq8RbHinDjc1t"
+    ],
+    [
+      "485985",
+      "9Kqt28pfMVBsBvXYYnYQCT2BZyorAwzbR6dUmgQfsZYW"
+    ]
+  ]
 }
