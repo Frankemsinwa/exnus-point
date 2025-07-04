@@ -1,5 +1,6 @@
 import { AppHeader } from "@/components/shared/header";
 import { AppFooter } from "@/components/shared/footer";
+import { ClientDate } from "@/components/shared/client-date";
 
 export default function PrivacyPolicy() {
   return (
@@ -8,7 +9,7 @@ export default function PrivacyPolicy() {
       <main className="flex-grow container max-w-4xl mx-auto py-12 px-4 md:px-6">
         <div className="space-y-8">
           <h1 className="text-4xl font-bold font-headline">Privacy Policy</h1>
-          <p className="text-muted-foreground">Last updated: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+          <p className="text-muted-foreground">Last updated: <ClientDate /></p>
 
           <div className="space-y-4 text-muted-foreground">
             <p>Welcome to EXNUS POINTS ("we," "our," or "us"). We are committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our application.</p>
