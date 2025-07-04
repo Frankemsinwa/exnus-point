@@ -1,9 +1,6 @@
+import { sql } from '@vercel/postgres';
 
-import clientPromise from './mongodb';
-import { MongoClient, type Collection, type Db, type WithId } from 'mongodb';
-
-// This is the raw user data structure stored in MongoDB
-interface UserDocument {
+export type User = {
   publicKey: string;
   points: number;
   miningEndTime: number | null;
@@ -13,124 +10,185 @@ interface UserDocument {
     task3: boolean;
   };
   referralCode: string;
-  referredBy: string | null; // This will store the publicKey of the referrer
+  referredBy: string | null; 
   referredUsersCount: number;
   referralBonus: number;
   lastClaimed: number | null;
   username: string;
   referralBonusProcessed: boolean;
+};
+
+// Helper function to map database rows (with snake_case) to User objects (with camelCase)
+function mapRowToUser(row: any): User {
+    return {
+        publicKey: row.public_key,
+        points: Number(row.points),
+        miningEndTime: row.mining_end_time ? Number(row.mining_end_time) : null,
+        tasksCompleted: {
+            task1: row.task1,
+            task2: row.task2,
+            task3: row.task3,
+        },
+        referralCode: row.referral_code,
+        referredBy: row.referred_by,
+        referredUsersCount: Number(row.referred_users_count),
+        referralBonus: Number(row.referral_bonus),
+        lastClaimed: row.last_claimed ? Number(row.last_claimed) : null,
+        username: row.username,
+        referralBonusProcessed: row.referral_bonus_processed,
+    };
 }
 
-// This is the type we will use throughout the application
-export type User = WithId<UserDocument>;
-
-let client: MongoClient;
-let mongoDbInstance: Db;
-let users: Collection<UserDocument>;
-
-async function init() {
-  if (mongoDbInstance) return;
-  try {
-    client = await clientPromise;
-    mongoDbInstance = client.db(); // This will use the database specified in your connection string
-    users = mongoDbInstance.collection<UserDocument>('users');
-  } catch (error) {
-    console.error("Failed to connect to the database", error);
-    throw new Error('Failed to connect to the database.');
-  }
+// Helper to convert camelCase to snake_case for dynamic queries
+function toSnakeCase(str: string) {
+    return str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
 }
 
-// Initialize the connection when this module is loaded
-(async () => {
-  await init();
-})();
+
+// This function ensures the 'users' table exists.
+async function setupDatabase() {
+    await sql`
+        CREATE TABLE IF NOT EXISTS users (
+            public_key VARCHAR(44) PRIMARY KEY,
+            points INTEGER DEFAULT 0 NOT NULL,
+            mining_end_time BIGINT,
+            task1 BOOLEAN DEFAULT FALSE NOT NULL,
+            task2 BOOLEAN DEFAULT FALSE NOT NULL,
+            task3 BOOLEAN DEFAULT FALSE NOT NULL,
+            referral_code VARCHAR(6) UNIQUE NOT NULL,
+            referred_by VARCHAR(44),
+            referred_users_count INTEGER DEFAULT 0 NOT NULL,
+            referral_bonus INTEGER DEFAULT 0 NOT NULL,
+            last_claimed BIGINT,
+            username VARCHAR(13) NOT NULL,
+            referral_bonus_processed BOOLEAN DEFAULT FALSE NOT NULL
+        );
+    `;
+     // Add foreign key constraint separately to avoid errors if the table already exists.
+    try {
+        await sql`
+            ALTER TABLE users
+            ADD CONSTRAINT fk_referred_by
+            FOREIGN KEY (referred_by) 
+            REFERENCES users(public_key);
+        `;
+    } catch (error: any) {
+        // Ignore error if constraint already exists
+        if (error.code !== '42710') {
+            throw error;
+        }
+    }
+}
+
 
 const generateUniqueReferralCode = async (): Promise<string> => {
-    await init();
     let code: string;
     let isUnique = false;
     do {
         code = Math.floor(100000 + Math.random() * 900000).toString();
-        if ((await users.countDocuments({ referralCode: code })) === 0) {
+        const { rows } = await sql`SELECT 1 FROM users WHERE referral_code = ${code}`;
+        if (rows.length === 0) {
             isUnique = true;
         }
     } while (!isUnique);
     return code;
 }
 
-const getOrCreateUser = async (publicKey: string, referralCode?: string | null): Promise<User> => {
-    await init();
-    let user = await users.findOne({ publicKey });
 
-    if (user) {
-        return user as User;
+const getOrCreateUser = async (publicKey: string, referralCode?: string | null): Promise<User> => {
+    await setupDatabase();
+    
+    const existingUserResult = await sql`SELECT * FROM users WHERE public_key = ${publicKey}`;
+    if (existingUserResult.rows.length > 0) {
+        return mapRowToUser(existingUserResult.rows[0]);
     }
     
-    const newUserDocument: UserDocument = {
-        publicKey,
-        points: 0,
-        miningEndTime: null,
-        tasksCompleted: { task1: false, task2: false, task3: false },
-        referralCode: await generateUniqueReferralCode(),
-        referredBy: null,
-        referredUsersCount: 0,
-        referralBonus: 0,
-        lastClaimed: null,
-        username: `${publicKey.slice(0, 4)}...${publicKey.slice(-4)}`,
-        referralBonusProcessed: false,
-    };
-    
+    // User does not exist, create new user
+    const newReferralCode = await generateUniqueReferralCode();
+    const username = `${publicKey.slice(0, 4)}...${publicKey.slice(-4)}`;
+    let referredBy: string | null = null;
+
     if (referralCode) {
-        const referrer = await users.findOne({ referralCode: referralCode });
-        if (referrer && referrer.publicKey !== publicKey) {
-            newUserDocument.referredBy = referrer.publicKey;
-            await users.updateOne(
-                { publicKey: referrer.publicKey },
-                { $inc: { referredUsersCount: 1 } }
-            );
+        const referrerResult = await sql`SELECT public_key FROM users WHERE referral_code = ${referralCode}`;
+        if (referrerResult.rows.length > 0) {
+            const referrerPublicKey = referrerResult.rows[0].public_key;
+            if(referrerPublicKey !== publicKey){
+                referredBy = referrerPublicKey;
+                 await sql`
+                    UPDATE users
+                    SET referred_users_count = referred_users_count + 1
+                    WHERE public_key = ${referredBy};
+                `;
+            }
         }
     }
 
-    const result = await users.insertOne(newUserDocument);
+    const { rows } = await sql`
+        INSERT INTO users (public_key, referral_code, username, referred_by)
+        VALUES (${publicKey}, ${newReferralCode}, ${username}, ${referredBy})
+        RETURNING *;
+    `;
     
-    const createdUser = await users.findOne({ _id: result.insertedId });
-    if (!createdUser) throw new Error("Failed to create and retrieve user.");
-    
-    return createdUser as User;
+    return mapRowToUser(rows[0]);
 }
 
 const getUserByPublicKey = async (publicKey: string): Promise<User | null> => {
-    await init();
-    return users.findOne({ publicKey });
+    await setupDatabase();
+    const { rows } = await sql`SELECT * FROM users WHERE public_key = ${publicKey}`;
+    if (rows.length === 0) {
+        return null;
+    }
+    return mapRowToUser(rows[0]);
 };
 
-const updateUser = async (publicKey: string, data: Partial<UserDocument>): Promise<User | null> => {
-    await init();
-    const result = await users.findOneAndUpdate(
-      { publicKey },
-      { $set: data },
-      { returnDocument: 'after' }
-    );
-    return result;
+
+const updateUser = async (publicKey: string, data: Partial<User>): Promise<User | null> => {
+    await setupDatabase();
+    
+    const flattenedData: { [key: string]: any } = { ...data };
+    if (data.tasksCompleted) {
+        if (data.tasksCompleted.task1 !== undefined) flattenedData.task1 = data.tasksCompleted.task1;
+        if (data.tasksCompleted.task2 !== undefined) flattenedData.task2 = data.tasksCompleted.task2;
+        if (data.tasksCompleted.task3 !== undefined) flattenedData.task3 = data.tasksCompleted.task3;
+        delete flattenedData.tasksCompleted;
+    }
+    
+    const columns = Object.keys(flattenedData);
+    if (columns.length === 0) {
+        return getUserByPublicKey(publicKey);
+    }
+
+    const setParts = columns.map((key, index) => `${toSnakeCase(key)} = $${index + 2}`);
+    const query = `UPDATE users SET ${setParts.join(', ')} WHERE public_key = $1 RETURNING *`;
+    
+    const values = [publicKey, ...Object.values(flattenedData)];
+    
+    const result = await sql.query(query, values);
+
+    if (result.rows.length === 0) {
+        return null;
+    }
+    return mapRowToUser(result.rows[0]);
 };
+
 
 const getLeaderboard = async (): Promise<User[]> => {
-    await init();
-    return users.find().sort({ points: -1 }).limit(100).toArray();
+    await setupDatabase();
+    const { rows } = await sql`SELECT * FROM users ORDER BY points DESC LIMIT 100`;
+    return rows.map(mapRowToUser);
 };
 
 const getTotalMined = async (): Promise<number> => {
-    await init();
-    const result = await users.aggregate([
-      { $group: { _id: null, total: { $sum: '$points' } } }
-    ]).toArray();
-    return result.length > 0 ? result[0].total : 0;
+    await setupDatabase();
+    const { rows } = await sql`SELECT SUM(points) as total FROM users`;
+    return Number(rows[0].total) || 0;
 };
 
 const getActiveMiners = async (): Promise<number> => {
-    await init();
+    await setupDatabase();
     const now = Date.now();
-    return users.countDocuments({ miningEndTime: { $gt: now } });
+    const { rows } = await sql`SELECT COUNT(*) FROM users WHERE mining_end_time > ${now}`;
+    return Number(rows[0].count);
 };
 
 
