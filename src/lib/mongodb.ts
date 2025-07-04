@@ -4,7 +4,7 @@ const uri = process.env.MONGODB_URI
 const options = {}
 
 if (!uri) {
-  throw new Error('Please add your Mongo URI to .env file')
+  throw new Error('MONGODB_URI not found. Please ensure you have a .env file in the project root with your full connection string.')
 }
 
 let client: MongoClient
