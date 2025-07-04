@@ -32,11 +32,8 @@ export default function AdminPage() {
 
     const handleDownloadSnapshot = () => {
         const snapshotData = users.map(u => ({
-            username: u.username,
             publicKey: u.publicKey,
-            points: u.points,
             airdropAllocation: parseFloat(u.airdropAllocation.toFixed(4)),
-            referredUsersCount: u.referredUsersCount,
         }));
 
         const dataStr = JSON.stringify(snapshotData, null, 2);
