@@ -21,10 +21,10 @@ const tasks = [
 
 type MiningCardProps = {
   user: User;
-  setBalance: (newBalance: number) => void;
+  onRewardClaimed: () => void;
 };
 
-export function MiningCard({ user, setBalance }: MiningCardProps) {
+export function MiningCard({ user, onRewardClaimed }: MiningCardProps) {
   const { publicKey, signMessage } = useWallet();
   const { toast } = useToast();
 
@@ -47,7 +47,8 @@ export function MiningCard({ user, setBalance }: MiningCardProps) {
         setIsMining(false);
         setIsClaimable(false);
     }
-  }, [user.miningEndTime]);
+    setTasksCompleted(user.tasksCompleted);
+  }, [user.miningEndTime, user.tasksCompleted]);
 
   useEffect(() => {
     if (isMining && miningEndTime) {
@@ -91,11 +92,7 @@ export function MiningCard({ user, setBalance }: MiningCardProps) {
       const result = await activateMining(publicKey.toBase58());
 
       if (result.success) {
-          const endTime = Date.now() + MINE_DURATION_MS;
-          setMiningEndTime(endTime);
-          setIsMining(true);
-          setIsClaimable(false);
-          setTimeLeft(MINE_DURATION_MS);
+          onRewardClaimed();
           toast({ title: "Mining Activated!", description: "You are now mining points for the next 24 hours." });
       } else {
           toast({ variant: 'destructive', title: 'Activation Failed', description: result.message });
@@ -112,10 +109,8 @@ export function MiningCard({ user, setBalance }: MiningCardProps) {
       if (!publicKey) return;
       setIsLoading(true);
       const result = await claimReward(publicKey.toBase58());
-      if (result.success && result.newBalance !== undefined) {
-          setBalance(result.newBalance);
-          setIsClaimable(false);
-          setMiningEndTime(null);
+      if (result.success) {
+          onRewardClaimed(); // Refetch data from parent
           toast({ title: "Success!", description: result.message });
       } else {
           toast({ variant: 'destructive', title: 'Claim Failed', description: result.message });
