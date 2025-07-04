@@ -67,7 +67,7 @@ export default function ReferralsPage() {
                         Share your unique link to earn bonus points for every friend who joins and starts mining.
                     </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-6">
                     <div>
                         <label htmlFor="referral-link" className="text-sm font-medium">Your Referral Link</label>
                         <div className="flex w-full max-w-lg items-center space-x-2 mt-2">
@@ -78,7 +78,17 @@ export default function ReferralsPage() {
                         </div>
                     </div>
 
-                    <div className="grid gap-4 md:grid-cols-2 pt-4">
+                    <div className="space-y-3 rounded-lg border bg-muted/30 p-4">
+                        <h4 className="font-semibold text-foreground">How It Works</h4>
+                        <ul className="list-decimal list-inside text-sm text-muted-foreground space-y-1.5">
+                            <li>Share your personal referral link with friends.</li>
+                            <li>Your friend joins by connecting their wallet via your link.</li>
+                            <li>You automatically receive <strong>100 bonus points</strong> when your referred friend activates their first mining session.</li>
+                            <li>Track your referred users and total bonus points below!</li>
+                        </ul>
+                    </div>
+
+                    <div className="grid gap-4 md:grid-cols-2">
                         <Card className="bg-muted/50">
                             <CardHeader className="pb-2">
                                 <CardTitle className="text-base">Referred Users</CardTitle>
