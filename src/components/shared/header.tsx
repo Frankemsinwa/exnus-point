@@ -2,6 +2,7 @@
 
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import Link from "next/link";
+import { ThemeSwitcher } from "./theme-switcher";
 
 export function AppHeader() {
   return (
@@ -13,6 +14,7 @@ export function AppHeader() {
           </Link>
         </div>
         <div className="flex flex-1 items-center justify-end space-x-2">
+          <ThemeSwitcher />
           <WalletMultiButton />
         </div>
       </div>

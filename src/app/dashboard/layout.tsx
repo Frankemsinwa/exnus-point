@@ -6,8 +6,9 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Loader2, LayoutDashboard, Gift, Trophy, Menu, X } from "lucide-react";
+import { Loader2, LayoutDashboard, Gift, Trophy, Menu } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { ThemeSwitcher } from "@/components/shared/theme-switcher";
 
 const navItems = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
@@ -42,12 +43,14 @@ export default function DashboardLayout({
 }) {
   const { connected, connecting } = useWallet();
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     if (!connecting && !connected) {
+      sessionStorage.setItem('redirectPath', pathname);
       router.push("/");
     }
-  }, [connected, connecting, router]);
+  }, [connected, connecting, router, pathname]);
 
   if (connecting || !connected) {
     return (
@@ -95,6 +98,7 @@ export default function DashboardLayout({
             </SheetContent>
           </Sheet>
           <div className="w-full flex-1" />
+          <ThemeSwitcher />
           <WalletMultiButton />
         </header>
         <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6 bg-background">

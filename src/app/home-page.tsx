@@ -23,7 +23,13 @@ export default function HomePage() {
 
   useEffect(() => {
     if (connected) {
-      router.push('/dashboard');
+      const redirectPath = sessionStorage.getItem('redirectPath');
+      if (redirectPath && redirectPath.startsWith('/dashboard')) {
+        sessionStorage.removeItem('redirectPath');
+        router.push(redirectPath);
+      } else {
+        router.push('/dashboard');
+      }
     }
   }, [connected, router]);
 
