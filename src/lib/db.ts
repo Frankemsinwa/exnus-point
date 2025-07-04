@@ -1,3 +1,4 @@
+
 import { sql } from '@vercel/postgres';
 
 export type User = {
@@ -45,37 +46,45 @@ function toSnakeCase(str: string) {
 }
 
 
-// This function ensures the 'users' table exists.
+// This function ensures the 'users' table exists. It is called automatically.
 async function setupDatabase() {
-    await sql`
-        CREATE TABLE IF NOT EXISTS users (
-            public_key VARCHAR(44) PRIMARY KEY,
-            points INTEGER DEFAULT 0 NOT NULL,
-            mining_end_time BIGINT,
-            task1 BOOLEAN DEFAULT FALSE NOT NULL,
-            task2 BOOLEAN DEFAULT FALSE NOT NULL,
-            task3 BOOLEAN DEFAULT FALSE NOT NULL,
-            referral_code VARCHAR(6) UNIQUE NOT NULL,
-            referred_by VARCHAR(44),
-            referred_users_count INTEGER DEFAULT 0 NOT NULL,
-            referral_bonus INTEGER DEFAULT 0 NOT NULL,
-            last_claimed BIGINT,
-            username VARCHAR(13) NOT NULL,
-            referral_bonus_processed BOOLEAN DEFAULT FALSE NOT NULL
-        );
-    `;
-     // Add foreign key constraint separately to avoid errors if the table already exists.
+    console.log("Attempting to set up database schema...");
     try {
+        await sql`
+            CREATE TABLE IF NOT EXISTS users (
+                public_key VARCHAR(44) PRIMARY KEY,
+                points INTEGER DEFAULT 0 NOT NULL,
+                mining_end_time BIGINT,
+                task1 BOOLEAN DEFAULT FALSE NOT NULL,
+                task2 BOOLEAN DEFAULT FALSE NOT NULL,
+                task3 BOOLEAN DEFAULT FALSE NOT NULL,
+                referral_code VARCHAR(6) UNIQUE NOT NULL,
+                referred_by VARCHAR(44),
+                referred_users_count INTEGER DEFAULT 0 NOT NULL,
+                referral_bonus INTEGER DEFAULT 0 NOT NULL,
+                last_claimed BIGINT,
+                username VARCHAR(13) NOT NULL,
+                referral_bonus_processed BOOLEAN DEFAULT FALSE NOT NULL
+            );
+        `;
+        console.log("SUCCESS: 'users' table created or already exists.");
+
+         // Add foreign key constraint separately to avoid errors if the table already exists.
         await sql`
             ALTER TABLE users
             ADD CONSTRAINT fk_referred_by
             FOREIGN KEY (referred_by) 
             REFERENCES users(public_key);
         `;
+        console.log("SUCCESS: Foreign key constraint 'fk_referred_by' ensured.");
+
     } catch (error: any) {
-        // Ignore error if constraint already exists
-        if (error.code !== '42710') {
-            throw error;
+        // Ignore error if constraint already exists (42710 is duplicate_object for postgres)
+        if (error.code === '42710') {
+            console.log("INFO: Foreign key constraint already exists, skipping.");
+        } else {
+            console.error("ERROR: Failed to set up database schema.", error);
+            throw error; // Re-throw other errors
         }
     }
 }
