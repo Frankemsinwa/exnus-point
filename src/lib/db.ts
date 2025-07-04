@@ -1,3 +1,4 @@
+
 export interface User {
   publicKey: string;
   points: number;
@@ -17,6 +18,17 @@ export interface User {
 
 const users: Map<string, User> = new Map();
 
+// Helper to generate a unique 6-digit referral code
+const generateUniqueReferralCode = (): string => {
+    let code: string;
+    const existingCodes = new Set(Array.from(users.values()).map(u => u.referralCode));
+    do {
+        // Generate a random 6-digit number as a string
+        code = Math.floor(100000 + Math.random() * 900000).toString();
+    } while (existingCodes.has(code)); // Ensure the code is unique
+    return code;
+}
+
 const getOrCreateUser = (publicKey: string): User => {
   if (!users.has(publicKey)) {
     const newUser: User = {
@@ -28,7 +40,7 @@ const getOrCreateUser = (publicKey: string): User => {
         task2: false,
         task3: false,
       },
-      referralCode: publicKey.slice(0, 8),
+      referralCode: generateUniqueReferralCode(),
       referredBy: null,
       referredUsersCount: 0,
       referralBonus: 0,
