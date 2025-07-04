@@ -1,0 +1,28 @@
+datasource db {
+  provider  = "postgresql"
+  url       = env("PRISMA_DATABASE_URL")
+  directUrl = env("POSTGRES_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id                     String    @id @default(cuid())
+  publicKey              String    @unique
+  points                 Int       @default(0)
+  miningEndTime          BigInt?
+  task1                  Boolean   @default(false)
+  task2                  Boolean   @default(false)
+  task3                  Boolean   @default(false)
+  referralCode           String    @unique
+  referredBy             String?
+  referredUsersCount     Int       @default(0)
+  referralBonus          Int       @default(0)
+  referralBonusProcessed Boolean   @default(false)
+  lastClaimed            BigInt?
+  username               String
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+}
