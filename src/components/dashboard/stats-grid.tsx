@@ -1,23 +1,29 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, BarChart, Gem } from 'lucide-react';
 
-export function StatsGrid() {
-  const stats = [
+type Stats = {
+  totalPointsMined: number;
+  activeMiners: number;
+  userRank: number;
+}
+
+export function StatsGrid({ stats }: { stats: Stats }) {
+  const statItems = [
     {
       title: "Total Points Mined",
-      value: "10,234,567",
+      value: stats.totalPointsMined.toLocaleString(),
       icon: Gem,
       description: "Across all participants"
     },
     {
       title: "Active Miners",
-      value: "5,842",
+      value: stats.activeMiners.toLocaleString(),
       icon: Users,
       description: "In the last 24 hours"
     },
     {
       title: "Your Rank",
-      value: "#1,234",
+      value: `#${stats.userRank.toLocaleString()}`,
       icon: BarChart,
       description: "Based on total points"
     }
@@ -25,7 +31,7 @@ export function StatsGrid() {
 
   return (
     <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-1 h-full">
-        {stats.map((stat) => (
+        {statItems.map((stat) => (
             <Card key={stat.title} className="flex flex-col flex-grow">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>

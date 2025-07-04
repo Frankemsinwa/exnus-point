@@ -6,24 +6,53 @@ import { Button } from "@/components/ui/button";
 import { Copy, Gift } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useWallet } from "@solana/wallet-adapter-react";
-import { useMemo } from "react";
+import { useEffect, useState } from "react";
+import { getReferralPageData } from "../actions";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function ReferralsPage() {
     const { toast } = useToast();
     const { publicKey } = useWallet();
+    const [data, setData] = useState<{ referralLink: string; referredUsers: number; bonusPoints: number; } | null>(null);
+    const [loading, setLoading] = useState(true);
 
-    const referralLink = useMemo(() => {
-        if (!publicKey) return "";
-        return `https://exnus.points/join?ref=${publicKey.toBase58().slice(0, 8)}`;
+    useEffect(() => {
+        if(publicKey) {
+            getReferralPageData(publicKey.toBase58()).then(setData).finally(() => setLoading(false));
+        }
     }, [publicKey]);
 
     const handleCopy = () => {
-        navigator.clipboard.writeText(referralLink);
+        if (!data?.referralLink) return;
+        navigator.clipboard.writeText(data.referralLink);
         toast({
             title: "Copied!",
             description: "Your referral link has been copied to the clipboard.",
         });
     };
+    
+    if (loading) {
+        return (
+             <div className="space-y-6">
+                <h1 className="text-lg font-semibold md:text-2xl font-headline">Referrals</h1>
+                <Card>
+                    <CardHeader>
+                        <Skeleton className="h-8 w-1/2" />
+                        <Skeleton className="h-4 w-3/4" />
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <Skeleton className="h-10 w-full max-w-lg" />
+                        <div className="grid gap-4 md:grid-cols-2 pt-4">
+                            <Skeleton className="h-24" />
+                            <Skeleton className="h-24" />
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+        )
+    }
+
+    if (!data) return <div>Could not load referral data.</div>;
 
     return (
         <div className="space-y-6">
@@ -42,8 +71,8 @@ export default function ReferralsPage() {
                     <div>
                         <label htmlFor="referral-link" className="text-sm font-medium">Your Referral Link</label>
                         <div className="flex w-full max-w-lg items-center space-x-2 mt-2">
-                            <Input id="referral-link" type="text" value={referralLink} readOnly />
-                            <Button type="button" size="icon" onClick={handleCopy} disabled={!referralLink}>
+                            <Input id="referral-link" type="text" value={data.referralLink} readOnly />
+                            <Button type="button" size="icon" onClick={handleCopy} disabled={!data.referralLink}>
                                 <Copy className="h-4 w-4" />
                             </Button>
                         </div>
@@ -55,7 +84,7 @@ export default function ReferralsPage() {
                                 <CardTitle className="text-base">Referred Users</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <p className="text-2xl font-bold">15</p>
+                                <p className="text-2xl font-bold">{data.referredUsers.toLocaleString()}</p>
                                 <p className="text-xs text-muted-foreground">Total friends who have joined.</p>
                             </CardContent>
                         </Card>
@@ -64,7 +93,7 @@ export default function ReferralsPage() {
                                 <CardTitle className="text-base">Bonus Points</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <p className="text-2xl font-bold">7,500</p>
+                                <p className="text-2xl font-bold">{data.bonusPoints.toLocaleString()}</p>
                                 <p className="text-xs text-muted-foreground">Total points earned from referrals.</p>
                             </CardContent>
                         </Card>

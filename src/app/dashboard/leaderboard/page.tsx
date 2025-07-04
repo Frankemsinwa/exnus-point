@@ -1,21 +1,19 @@
+"use client";
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Trophy } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { useEffect, useState } from "react";
+import { useWallet } from "@solana/wallet-adapter-react";
+import { getLeaderboardPageData } from "../actions";
+import { Skeleton } from "@/components/ui/skeleton";
 
-const leaderboardData = [
-  { rank: 1, user: '8a...f3e', points: '1,250,000' },
-  { rank: 2, user: 'b4...c1a', points: '1,180,500' },
-  { rank: 3, user: 'd9...9b2', points: '1,150,000' },
-  { rank: 4, user: '2c...7d8', points: '1,090,250' },
-  { rank: 5, user: 'e1...a6f', points: '980,750' },
-  { rank: 6, user: 'f7...3e4', points: '950,000' },
-  { rank: 7, user: '1a...b2c', points: '920,100' },
-  { rank: 1234, user: '4g...h5i (You)', points: '55,000' },
-  { rank: 8, user: '3d...8f9', points: '890,500' },
-  { rank: 9, user: '6e...2g1', points: '880,000' },
-  { rank: 10, user: '7h...4i3', points: '870,250' },
-];
+type LeaderboardEntry = {
+    rank: number;
+    user: string;
+    points: string;
+}
 
 const rankColors: { [key: number]: string } = {
     1: "bg-amber-400 text-amber-900",
@@ -24,6 +22,48 @@ const rankColors: { [key: number]: string } = {
 }
 
 export default function LeaderboardPage() {
+    const { publicKey } = useWallet();
+    const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        if (publicKey) {
+            getLeaderboardPageData(publicKey.toBase58())
+                .then(data => {
+                    setLeaderboard(data.leaderboard);
+                })
+                .finally(() => setLoading(false));
+        } else {
+           // Handle case where wallet is not connected but page is accessed
+           setLoading(false);
+        }
+    }, [publicKey]);
+
+    if (loading) {
+        return (
+            <div className="space-y-6">
+                <h1 className="text-lg font-semibold md:text-2xl font-headline">Leaderboard</h1>
+                <Card>
+                    <CardHeader>
+                        <Skeleton className="h-8 w-1/3" />
+                        <Skeleton className="h-4 w-1/2" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="space-y-2">
+                            {[...Array(10)].map((_, i) => (
+                                <div key={i} className="flex items-center gap-4 p-2">
+                                    <Skeleton className="h-6 w-12 rounded-full" />
+                                    <Skeleton className="h-6 flex-1" />
+                                    <Skeleton className="h-6 w-24" />
+                                </div>
+                            ))}
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+        )
+    }
+
   return (
     <div className="space-y-6">
       <h1 className="text-lg font-semibold md:text-2xl font-headline">Leaderboard</h1>
@@ -47,7 +87,7 @@ export default function LeaderboardPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {leaderboardData.sort((a,b) => a.rank - b.rank).map((entry) => (
+              {leaderboard.length > 0 ? leaderboard.sort((a,b) => a.rank - b.rank).map((entry) => (
                 <TableRow key={entry.rank} className={entry.user.includes('(You)') ? 'bg-accent/20' : ''}>
                   <TableCell className="font-medium">
                     <Badge variant="secondary" className={`text-base ${rankColors[entry.rank] || ''}`}>{entry.rank}</Badge>
@@ -55,7 +95,13 @@ export default function LeaderboardPage() {
                   <TableCell className="font-mono">{entry.user}</TableCell>
                   <TableCell className="text-right font-semibold">{entry.points}</TableCell>
                 </TableRow>
-              ))}
+              )) : (
+                <TableRow>
+                    <TableCell colSpan={3} className="text-center">
+                        No data to display. Connect your wallet to see the leaderboard.
+                    </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </CardContent>
