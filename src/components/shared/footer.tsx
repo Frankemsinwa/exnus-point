@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { Zap } from "lucide-react";
 
 export function AppFooter() {
@@ -12,8 +11,8 @@ export function AppFooter() {
           </p>
         </div>
         <div className="flex items-center gap-4 text-sm text-muted-foreground">
-          <Link href="/terms-and-conditions" className="hover:text-foreground transition-colors">Terms & Conditions</Link>
-          <Link href="/privacy-policy" className="hover:text-foreground transition-colors">Privacy Policy</Link>
+          <a href="/terms-and-conditions" className="hover:text-foreground transition-colors">Terms & Conditions</a>
+          <a href="/privacy-policy" className="hover:text-foreground transition-colors">Privacy Policy</a>
         </div>
       </div>
     </footer>
