@@ -1,5 +1,5 @@
 import clientPromise from './mongodb';
-import type { Collection, Db, WithId } from 'mongodb';
+import { MongoClient, type Collection, type Db, type WithId } from 'mongodb';
 
 // This is the raw user data structure stored in MongoDB
 interface UserDocument {
@@ -23,7 +23,7 @@ interface UserDocument {
 // This is the type we will use throughout the application
 export type User = WithId<UserDocument>;
 
-let client;
+let client: MongoClient;
 let db: Db;
 let users: Collection<UserDocument>;
 
@@ -63,7 +63,7 @@ const getOrCreateUser = async (publicKey: string, referralCode?: string | null):
     let user = await users.findOne({ publicKey });
 
     if (user) {
-        return user;
+        return user as User;
     }
     
     const newUserDocument: UserDocument = {
@@ -96,7 +96,7 @@ const getOrCreateUser = async (publicKey: string, referralCode?: string | null):
     const createdUser = await users.findOne({ _id: result.insertedId });
     if (!createdUser) throw new Error("Failed to create and retrieve user.");
     
-    return createdUser;
+    return createdUser as User;
 }
 
 export const db = {
