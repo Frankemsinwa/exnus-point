@@ -1,4 +1,9 @@
 import { MongoClient } from 'mongodb'
+import dotenv from 'dotenv'
+
+// Explicitly load environment variables from .env file at the project root
+dotenv.config({ path: './.env' });
+
 
 const uri = process.env.MONGODB_URI
 const options = {}
