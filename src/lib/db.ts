@@ -1,5 +1,6 @@
 import { promises as fs } from 'fs';
 import path from 'path';
+import { lock, unlock } from 'proper-lockfile';
 
 export type User = {
     publicKey: string;
@@ -26,27 +27,34 @@ type DBData = {
 
 const dbPath = path.join(process.cwd(), 'data', 'db.json');
 
-let memoryDb: DBData | null = null;
+// Options for file locking to handle retries gracefully.
+const dbLockOptions = {
+    retries: {
+        retries: 5,
+        factor: 3,
+        minTimeout: 100,
+        maxTimeout: 300,
+        randomize: true,
+    },
+};
 
+// Always read directly from the file to ensure data consistency when locking.
 async function readDb(): Promise<DBData> {
-    if (memoryDb) return memoryDb;
     try {
+        await fs.mkdir(path.dirname(dbPath), { recursive: true });
         const fileContent = await fs.readFile(dbPath, 'utf-8');
-        memoryDb = JSON.parse(fileContent);
-        return memoryDb!;
+        return JSON.parse(fileContent);
     } catch (error: any) {
         if (error.code === 'ENOENT') {
             const initialDb: DBData = { users: [], referralCodeToPublicKey: [] };
-            await writeDb(initialDb);
-            memoryDb = initialDb;
-            return memoryDb;
+            await fs.writeFile(dbPath, JSON.stringify(initialDb, null, 2), 'utf-8');
+            return initialDb;
         }
         throw error;
     }
 }
 
 async function writeDb(data: DBData): Promise<void> {
-    memoryDb = data;
     await fs.writeFile(dbPath, JSON.stringify(data, null, 2), 'utf-8');
 }
 
@@ -64,53 +72,57 @@ const generateUniqueReferralCode = async (data: DBData): Promise<string> => {
 };
 
 const getOrCreateUser = async (publicKey: string, referralCode?: string | null): Promise<User> => {
-    const data = await readDb();
-    const userMap = new Map(data.users);
+    await lock(dbPath, dbLockOptions);
+    try {
+        const data = await readDb();
+        const userMap = new Map(data.users);
 
-    if (userMap.has(publicKey)) {
-        return userMap.get(publicKey)!;
-    }
+        if (userMap.has(publicKey)) {
+            return userMap.get(publicKey)!;
+        }
 
-    // New user logic
-    const newReferralCode = await generateUniqueReferralCode(data);
-    const username = `${publicKey.slice(0, 4)}...${publicKey.slice(-4)}`;
-    
-    const newUser: User = {
-        publicKey,
-        points: 0,
-        miningEndTime: null,
-        tasksCompleted: { task1: false, task2: false, task3: false },
-        referralCode: newReferralCode,
-        referredBy: null,
-        referredUsersCount: 0,
-        referralBonus: 0,
-        lastClaimed: null,
-        username,
-        referralBonusProcessed: false,
-    };
-
-    // Handle referral if code is provided
-    if (referralCode) {
-        const referralMap = new Map(data.referralCodeToPublicKey);
-        const referrerPublicKey = referralMap.get(referralCode);
+        // New user logic
+        const newReferralCode = await generateUniqueReferralCode(data);
+        const username = `${publicKey.slice(0, 4)}...${publicKey.slice(-4)}`;
         
-        if (referrerPublicKey && referrerPublicKey !== publicKey) {
-            const referrer = userMap.get(referrerPublicKey);
-            if (referrer) {
-                newUser.referredBy = referrerPublicKey;
-                referrer.referredUsersCount += 1;
-                userMap.set(referrerPublicKey, referrer);
+        const newUser: User = {
+            publicKey,
+            points: 0,
+            miningEndTime: null,
+            tasksCompleted: { task1: false, task2: false, task3: false },
+            referralCode: newReferralCode,
+            referredBy: null,
+            referredUsersCount: 0,
+            referralBonus: 0,
+            lastClaimed: null,
+            username,
+            referralBonusProcessed: false,
+        };
+
+        // Handle referral if code is provided
+        if (referralCode) {
+            const referralMap = new Map(data.referralCodeToPublicKey);
+            const referrerPublicKey = referralMap.get(referralCode);
+            
+            if (referrerPublicKey && referrerPublicKey !== publicKey) {
+                const referrer = userMap.get(referrerPublicKey);
+                if (referrer) {
+                    newUser.referredBy = referrerPublicKey;
+                    referrer.referredUsersCount += 1;
+                    userMap.set(referrerPublicKey, referrer);
+                }
             }
         }
+
+        userMap.set(publicKey, newUser);
+        data.users = Array.from(userMap.entries());
+        data.referralCodeToPublicKey.push([newReferralCode, publicKey]);
+
+        await writeDb(data);
+        return newUser;
+    } finally {
+        await unlock(dbPath);
     }
-
-    userMap.set(publicKey, newUser);
-    data.users = Array.from(userMap.entries());
-    data.referralCodeToPublicKey.push([newReferralCode, publicKey]);
-
-    await writeDb(data);
-
-    return newUser;
 };
 
 const getUserByPublicKey = async (publicKey: string): Promise<User | null> => {
@@ -120,20 +132,25 @@ const getUserByPublicKey = async (publicKey: string): Promise<User | null> => {
 };
 
 const updateUser = async (publicKey: string, updates: Partial<User>): Promise<User | null> => {
-    const data = await readDb();
-    const userMap = new Map(data.users);
-    const user = userMap.get(publicKey);
+    await lock(dbPath, dbLockOptions);
+    try {
+        const data = await readDb();
+        const userMap = new Map(data.users);
+        const user = userMap.get(publicKey);
 
-    if (!user) {
-        return null;
+        if (!user) {
+            return null;
+        }
+
+        const updatedUser = { ...user, ...updates };
+        userMap.set(publicKey, updatedUser);
+        data.users = Array.from(userMap.entries());
+
+        await writeDb(data);
+        return updatedUser;
+    } finally {
+        await unlock(dbPath);
     }
-
-    const updatedUser = { ...user, ...updates };
-    userMap.set(publicKey, updatedUser);
-    data.users = Array.from(userMap.entries());
-
-    await writeDb(data);
-    return updatedUser;
 };
 
 const getLeaderboard = async (): Promise<User[]> => {
@@ -159,7 +176,6 @@ const getAllUsers = async (): Promise<User[]> => {
     const data = await readDb();
     return Array.from(new Map(data.users).values());
 };
-
 
 export const db = {
     getUser: getOrCreateUser,

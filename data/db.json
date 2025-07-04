@@ -5,11 +5,11 @@
       {
         "publicKey": "5Gy5qYXhYs7aPfEztAG6vTPVow5snudPksBvF5DAYLpX",
         "points": 0,
-        "miningEndTime": null,
+        "miningEndTime": 1751743605396,
         "tasksCompleted": {
-          "task1": false,
-          "task2": false,
-          "task3": false
+          "task1": true,
+          "task2": true,
+          "task3": true
         },
         "referralCode": "221407",
         "referredBy": null,
