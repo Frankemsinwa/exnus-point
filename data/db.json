@@ -59,6 +59,26 @@
         "username": "9Kqt...sZYW",
         "referralBonusProcessed": false
       }
+    ],
+    [
+      "4bMe85jExrA7uRQGfWrbfD92ynmiUEQERKUK8NvXktnT",
+      {
+        "publicKey": "4bMe85jExrA7uRQGfWrbfD92ynmiUEQERKUK8NvXktnT",
+        "points": 0,
+        "miningEndTime": null,
+        "tasksCompleted": {
+          "task1": false,
+          "task2": false,
+          "task3": false
+        },
+        "referralCode": "461890",
+        "referredBy": null,
+        "referredUsersCount": 0,
+        "referralBonus": 0,
+        "lastClaimed": null,
+        "username": "4bMe...ktnT",
+        "referralBonusProcessed": false
+      }
     ]
   ],
   "referralCodeToPublicKey": [
@@ -73,6 +93,10 @@
     [
       "485985",
       "9Kqt28pfMVBsBvXYYnYQCT2BZyorAwzbR6dUmgQfsZYW"
+    ],
+    [
+      "461890",
+      "4bMe85jExrA7uRQGfWrbfD92ynmiUEQERKUK8NvXktnT"
     ]
   ]
 }

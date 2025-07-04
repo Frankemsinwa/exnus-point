@@ -4,26 +4,44 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from '@/components/ui/button';
-import { Download } from 'lucide-react';
-import { getAdminData } from './actions';
+import { Download, Users, Gem, Gift } from 'lucide-react';
+import { getAdminDashboardData } from './actions';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { User } from '@/lib/db';
 
+type EnrichedUser = User & { airdropAllocation: number };
+
+type AdminStats = {
+    totalUsers: number;
+    totalPoints: number;
+    totalTokens: number;
+}
+
 export default function AdminPage() {
-    const [users, setUsers] = useState<User[]>([]);
+    const [users, setUsers] = useState<EnrichedUser[]>([]);
+    const [stats, setStats] = useState<AdminStats | null>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        getAdminData().then(data => {
+        getAdminDashboardData().then(data => {
             setUsers(data.users);
+            setStats(data.stats);
             setLoading(false);
         });
     }, []);
 
     const handleDownloadSnapshot = () => {
-        const dataStr = JSON.stringify(users, null, 2);
+        const snapshotData = users.map(u => ({
+            username: u.username,
+            publicKey: u.publicKey,
+            points: u.points,
+            airdropAllocation: parseFloat(u.airdropAllocation.toFixed(4)),
+            referredUsersCount: u.referredUsersCount,
+        }));
+
+        const dataStr = JSON.stringify(snapshotData, null, 2);
         const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-        const exportFileDefaultName = 'exnus_points_snapshot.json';
+        const exportFileDefaultName = 'exnus_airdrop_snapshot.json';
 
         const linkElement = document.createElement('a');
         linkElement.setAttribute('href', dataUri);
@@ -33,19 +51,26 @@ export default function AdminPage() {
 
     if (loading) {
         return (
-             <Card>
-                <CardHeader>
-                    <Skeleton className="h-8 w-1/3" />
-                    <Skeleton className="h-4 w-1/2" />
-                </CardHeader>
-                <CardContent>
-                    <div className="space-y-2">
-                        {[...Array(10)].map((_, i) => (
-                             <Skeleton key={i} className="h-10 w-full" />
-                        ))}
-                    </div>
-                </CardContent>
-            </Card>
+             <div className="space-y-6">
+                <div className="grid gap-4 md:grid-cols-3">
+                    <Skeleton className="h-28" />
+                    <Skeleton className="h-28" />
+                    <Skeleton className="h-28" />
+                </div>
+                <Card>
+                    <CardHeader>
+                        <Skeleton className="h-8 w-1/3" />
+                        <Skeleton className="h-4 w-1/2" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="space-y-2">
+                            {[...Array(10)].map((_, i) => (
+                                 <Skeleton key={i} className="h-10 w-full" />
+                            ))}
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
         )
     }
 
@@ -54,16 +79,50 @@ export default function AdminPage() {
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-2xl font-bold font-headline">Admin Dashboard</h1>
-                    <p className="text-muted-foreground">A complete overview of all user data.</p>
+                    <p className="text-muted-foreground">Airdrop calculation and user data overview.</p>
                 </div>
                 <Button onClick={handleDownloadSnapshot}>
                     <Download className="mr-2 h-4 w-4" />
-                    Download Snapshot
+                    Download Airdrop Snapshot
                 </Button>
             </div>
+
+            {stats && (
+                <div className="grid gap-4 md:grid-cols-3">
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+                            <Users className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">{stats.totalUsers.toLocaleString()}</div>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Total Points in System</CardTitle>
+                            <Gem className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">{stats.totalPoints.toLocaleString()}</div>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Total Tokens for Airdrop</CardTitle>
+                            <Gift className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">{stats.totalTokens.toLocaleString()}</div>
+                            <p className="text-xs text-muted-foreground">100 Million</p>
+                        </CardContent>
+                    </Card>
+                </div>
+            )}
+            
              <Card>
                 <CardHeader>
-                    <CardTitle>User Data</CardTitle>
+                    <CardTitle>User Airdrop Allocation</CardTitle>
                     <CardDescription>{users.length} users found in the system.</CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -73,7 +132,7 @@ export default function AdminPage() {
                                 <TableHead>Username</TableHead>
                                 <TableHead>Public Key</TableHead>
                                 <TableHead className="text-right">Points</TableHead>
-                                <TableHead className="text-right">Referred Users</TableHead>
+                                <TableHead className="text-right">Airdrop Allocation</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -82,7 +141,7 @@ export default function AdminPage() {
                                     <TableCell className="font-mono">{user.username}</TableCell>
                                     <TableCell className="font-mono text-xs">{user.publicKey}</TableCell>
                                     <TableCell className="text-right font-semibold">{user.points.toLocaleString()}</TableCell>
-                                    <TableCell className="text-right">{user.referredUsersCount}</TableCell>
+                                    <TableCell className="text-right font-bold text-accent">{user.airdropAllocation.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                                 </TableRow>
                             )) : (
                                 <TableRow>
