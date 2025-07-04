@@ -1,25 +1,25 @@
 
 'use server';
 
-import { db, User } from '@/lib/db';
+import { db, type User } from '@/lib/db';
 import { revalidatePath } from 'next/cache';
 import { MINE_DURATION_MS, POINTS_PER_SESSION } from '@/lib/constants';
 
 export async function getUserData(publicKey: string): Promise<User | null> {
     if (!publicKey) return null;
-    return db.getUser(publicKey);
+    return await db.getUser(publicKey);
 }
 
 export async function getDashboardData(publicKey: string, referralCode?: string | null) {
     if (!publicKey) return null;
 
-    const user = db.getUser(publicKey, referralCode);
-    const allUsers = db.getLeaderboard();
+    const user = await db.getUser(publicKey, referralCode);
+    const allUsers = await db.getLeaderboard();
     const rank = allUsers.findIndex(u => u.publicKey === publicKey) + 1;
 
     const stats = {
-        totalPointsMined: db.getTotalMined(),
-        activeMiners: db.getActiveMiners(),
+        totalPointsMined: await db.getTotalMined(),
+        activeMiners: await db.getActiveMiners(),
         userRank: rank > 0 ? rank : allUsers.length + 1,
     };
 
@@ -30,7 +30,7 @@ export async function getDashboardData(publicKey: string, referralCode?: string 
 export async function activateMining(publicKey: string): Promise<{ success: boolean; message: string }> {
     if (!publicKey) return { success: false, message: 'Wallet not connected.' };
 
-    const user = db.getUser(publicKey);
+    const user = await db.getUser(publicKey);
     const allTasksCompleted = Object.values(user.tasksCompleted).every(Boolean);
 
     if (!allTasksCompleted) {
@@ -45,10 +45,10 @@ export async function activateMining(publicKey: string): Promise<{ success: bool
 
     // Handle referral bonus on first activation
     if (user.referredBy && !user.referralBonusProcessed) {
-        const referrer = db.getUser(user.referredBy);
+        const referrer = await db.getUserByPublicKey(user.referredBy);
         if (referrer) {
             const bonus = 100;
-            db.updateUser(referrer.publicKey, {
+            await db.updateUser(referrer.publicKey, {
                 points: referrer.points + bonus,
                 referralBonus: referrer.referralBonus + bonus,
             });
@@ -56,7 +56,7 @@ export async function activateMining(publicKey: string): Promise<{ success: bool
         updates.referralBonusProcessed = true;
     }
 
-    db.updateUser(publicKey, updates);
+    await db.updateUser(publicKey, updates);
     
     revalidatePath('/dashboard');
     return { success: true, message: 'Mining activated!' };
@@ -65,9 +65,9 @@ export async function activateMining(publicKey: string): Promise<{ success: bool
 export async function completeTask(publicKey: string, taskId: 'task1' | 'task2' | 'task3'): Promise<{ success: boolean }> {
     if (!publicKey) return { success: false };
     
-    const user = db.getUser(publicKey);
+    const user = await db.getUser(publicKey);
     const updatedTasks = { ...user.tasksCompleted, [taskId]: true };
-    db.updateUser(publicKey, { tasksCompleted: updatedTasks });
+    await db.updateUser(publicKey, { tasksCompleted: updatedTasks });
     
     revalidatePath('/dashboard');
     return { success: true };
@@ -76,14 +76,14 @@ export async function completeTask(publicKey: string, taskId: 'task1' | 'task2' 
 export async function claimReward(publicKey: string): Promise<{ success: boolean; message: string; newBalance?: number }> {
     if (!publicKey) return { success: false, message: 'Wallet not connected.' };
 
-    const user = db.getUser(publicKey);
+    const user = await db.getUser(publicKey);
 
     if (!user.miningEndTime || user.miningEndTime > Date.now()) {
         return { success: false, message: 'Mining session not yet complete.' };
     }
 
     const newBalance = user.points + POINTS_PER_SESSION;
-    db.updateUser(publicKey, { 
+    await db.updateUser(publicKey, { 
         points: newBalance,
         miningEndTime: null,
         lastClaimed: Date.now()
@@ -97,7 +97,7 @@ export async function claimReward(publicKey: string): Promise<{ success: boolean
 export async function getLeaderboardPageData(publicKey: string) {
     if (!publicKey) return {leaderboard: []};
     
-    const leaderboard = db.getLeaderboard();
+    const leaderboard = await db.getLeaderboard();
     const userIndex = leaderboard.findIndex(u => u.publicKey === publicKey);
     
     let topUsers = leaderboard.slice(0, 10).map((u, i) => ({
@@ -121,7 +121,7 @@ export async function getLeaderboardPageData(publicKey: string) {
 
 export async function getReferralPageData(publicKey: string) {
     if (!publicKey) return null;
-    const user = db.getUser(publicKey);
+    const user = await db.getUser(publicKey);
     
     const referralLink = `https://points.exnus.org/join?ref=${user.referralCode}`;
 

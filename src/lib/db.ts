@@ -1,5 +1,8 @@
+import clientPromise from './mongodb';
+import type { Collection, Db, WithId } from 'mongodb';
 
-export interface User {
+// This is the raw user data structure stored in MongoDB
+interface UserDocument {
   publicKey: string;
   points: number;
   miningEndTime: number | null;
@@ -9,7 +12,7 @@ export interface User {
     task3: boolean;
   };
   referralCode: string;
-  referredBy: string | null;
+  referredBy: string | null; // This will store the publicKey of the referrer
   referredUsersCount: number;
   referralBonus: number;
   lastClaimed: number | null;
@@ -17,78 +20,117 @@ export interface User {
   referralBonusProcessed: boolean;
 }
 
-const users: Map<string, User> = new Map();
+// This is the type we will use throughout the application
+export type User = WithId<UserDocument>;
 
-// Helper to generate a unique 6-digit referral code
-const generateUniqueReferralCode = (): string => {
+let client;
+let db: Db;
+let users: Collection<UserDocument>;
+
+async function init() {
+  if (db) return;
+  try {
+    client = await clientPromise;
+    db = client.db(); // This will use the database specified in your connection string
+    users = db.collection<UserDocument>('users');
+  } catch (error) {
+    console.error("Failed to connect to the database", error);
+    throw new Error('Failed to connect to the database.');
+  }
+}
+
+// Initialize the connection when this module is loaded
+(async () => {
+  await init();
+})();
+
+const generateUniqueReferralCode = async (): Promise<string> => {
+    await init();
     let code: string;
-    const existingCodes = new Set(Array.from(users.values()).map(u => u.referralCode));
+    let isUnique = false;
     do {
-        // Generate a random 6-digit number as a string
         code = Math.floor(100000 + Math.random() * 900000).toString();
-    } while (existingCodes.has(code)); // Ensure the code is unique
+        // Use countDocuments for efficiency
+        if ((await users.countDocuments({ referralCode: code })) === 0) {
+            isUnique = true;
+        }
+    } while (!isUnique);
     return code;
 }
 
-const getOrCreateUser = (publicKey: string, referralCode?: string | null): User => {
-  if (users.has(publicKey)) {
-    return users.get(publicKey)!;
-  }
-  
-  const newUser: User = {
-    publicKey,
-    points: 0,
-    miningEndTime: null,
-    tasksCompleted: {
-      task1: false,
-      task2: false,
-      task3: false,
-    },
-    referralCode: generateUniqueReferralCode(),
-    referredBy: null,
-    referredUsersCount: 0,
-    referralBonus: 0,
-    lastClaimed: null,
-    username: `${publicKey.slice(0, 4)}...${publicKey.slice(-4)}`,
-    referralBonusProcessed: false,
-  };
+const getOrCreateUser = async (publicKey: string, referralCode?: string | null): Promise<User> => {
+    await init();
+    let user = await users.findOne({ publicKey });
 
-  if (referralCode) {
-      const referrer = Array.from(users.values()).find(u => u.referralCode === referralCode);
-      // Ensure referrer exists and is not the user themselves
-      if (referrer && referrer.publicKey !== publicKey) {
-          newUser.referredBy = referrer.publicKey;
-          // Update referrer's data
-          const updatedReferrer = {
-              ...referrer,
-              referredUsersCount: referrer.referredUsersCount + 1,
-          };
-          users.set(referrer.publicKey, updatedReferrer);
-      }
-  }
+    if (user) {
+        return user;
+    }
+    
+    const newUserDocument: UserDocument = {
+        publicKey,
+        points: 0,
+        miningEndTime: null,
+        tasksCompleted: { task1: false, task2: false, task3: false },
+        referralCode: await generateUniqueReferralCode(),
+        referredBy: null,
+        referredUsersCount: 0,
+        referralBonus: 0,
+        lastClaimed: null,
+        username: `${publicKey.slice(0, 4)}...${publicKey.slice(-4)}`,
+        referralBonusProcessed: false,
+    };
+    
+    if (referralCode) {
+        const referrer = await users.findOne({ referralCode: referralCode });
+        if (referrer && referrer.publicKey !== publicKey) {
+            newUserDocument.referredBy = referrer.publicKey;
+            await users.updateOne(
+                { publicKey: referrer.publicKey },
+                { $inc: { referredUsersCount: 1 } }
+            );
+        }
+    }
 
-  users.set(publicKey, newUser);
-  return newUser;
-};
+    const result = await users.insertOne(newUserDocument);
+    
+    const createdUser = await users.findOne({ _id: result.insertedId });
+    if (!createdUser) throw new Error("Failed to create and retrieve user.");
+    
+    return createdUser;
+}
 
 export const db = {
-  getUser: (publicKey: string, referralCode?: string | null): User => {
+  getUser: async (publicKey: string, referralCode?: string | null): Promise<User> => {
     return getOrCreateUser(publicKey, referralCode);
   },
-  updateUser: (publicKey: string, data: Partial<User>): User => {
-    const user = getOrCreateUser(publicKey);
-    const updatedUser = { ...user, ...data };
-    users.set(publicKey, updatedUser);
-    return updatedUser;
+  getUserByPublicKey: async (publicKey: string): Promise<User | null> => {
+    await init();
+    return users.findOne({ publicKey });
   },
-  getLeaderboard: (): User[] => {
-    return Array.from(users.values()).sort((a, b) => b.points - a.points);
+  updateUser: async (publicKey: string, data: Partial<UserDocument>): Promise<User | null> => {
+    await init();
+    const result = await users.findOneAndUpdate(
+      { publicKey },
+      { $set: data },
+      { returnDocument: 'after' }
+    );
+    return result;
   },
-  getTotalMined: (): number => {
-    return Array.from(users.values()).reduce((sum, user) => sum + user.points, 0);
+  getLeaderboard: async (): Promise<User[]> => {
+    await init();
+    // Limit to top 100 for performance
+    return users.find().sort({ points: -1 }).limit(100).toArray();
   },
-  getActiveMiners: (): number => {
+  getTotalMined: async (): Promise<number> => {
+    await init();
+    const result = await users.aggregate([
+      { $group: { _id: null, total: { $sum: '$points' } } }
+    ]).toArray();
+    return result.length > 0 ? result[0].total : 0;
+  },
+  getActiveMiners: async (): Promise<number> => {
+    await init();
     const now = Date.now();
-    return Array.from(users.values()).filter(u => u.miningEndTime && u.miningEndTime > now).length;
+    return users.countDocuments({ miningEndTime: { $gt: now } });
   }
 };
