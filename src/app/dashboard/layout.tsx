@@ -6,7 +6,7 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Loader2, Zap, LayoutDashboard, Gift, Trophy, Menu, X } from "lucide-react";
+import { Loader2, LayoutDashboard, Gift, Trophy, Menu, X } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
 const navItems = [
@@ -63,8 +63,7 @@ export default function DashboardLayout({
       <div className="hidden border-r bg-muted/40 md:block">
         <div className="flex h-full max-h-screen flex-col gap-2">
           <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
-            <Link href="/" className="flex items-center gap-2 font-semibold">
-              <Zap className="h-6 w-6 text-accent" />
+            <Link href="/" className="flex items-center font-semibold">
               <span className="">EXNUS POINTS</span>
             </Link>
           </div>
@@ -88,8 +87,7 @@ export default function DashboardLayout({
             </SheetTrigger>
             <SheetContent side="left" className="flex flex-col">
                 <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
-                    <Link href="/" className="flex items-center gap-2 font-semibold">
-                        <Zap className="h-6 w-6 text-accent" />
+                    <Link href="/" className="flex items-center font-semibold">
                         <span className="">EXNUS POINTS</span>
                     </Link>
                 </div>
