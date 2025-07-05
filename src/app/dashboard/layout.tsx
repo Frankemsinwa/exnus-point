@@ -112,6 +112,9 @@ export default function DashboardLayout({
                 <NavContent />
             </SheetContent>
           </Sheet>
+          <Link href="/" className="font-semibold md:hidden">
+            EXNUS POINTS
+          </Link>
           <div className="w-full flex-1" />
           <DynamicWalletButton />
         </header>
