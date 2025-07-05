@@ -183,7 +183,7 @@ export function MiningCard({ user, onRewardClaimed }: MiningCardProps) {
                 </div>
                 <h3 className="text-2xl font-bold font-headline mt-4">Ready For a New Session?</h3>
                 <p className="text-muted-foreground max-w-xs">
-                    You've completed all the initial tasks. Click the button below to start your next 24-hour mining session.
+                    Your mining session has ended. Please reactivate to start mining.
                 </p>
             </div>
           ) : (
