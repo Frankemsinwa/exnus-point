@@ -7,6 +7,7 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { AppHeader } from '@/components/shared/header';
 import { AppFooter } from '@/components/shared/footer';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { CheckCircle, Gift, Zap, Loader2 } from 'lucide-react';
 import { DynamicWalletButton } from '@/components/shared/dynamic-wallet-button';
 
@@ -72,6 +73,29 @@ export default function HomePage() {
     },
   ];
 
+  const faqItems = [
+    {
+      question: 'How do I earn points?',
+      answer: 'You earn points by completing the one-time tasks to unlock mining, and then activating a mining session every 24 hours. You can also earn significant bonus points by referring friends with your unique referral link.',
+    },
+    {
+      question: 'What are the points for?',
+      answer: 'The points you accumulate will directly determine your allocation in the upcoming EXNUS token airdrop. The more points you have, the larger your potential share of the airdrop will be.',
+    },
+    {
+      question: 'Can I use multiple wallets or create multiple accounts?',
+      answer: 'No. To ensure a fair and equitable distribution for all participants, using multiple accounts or wallets is strictly prohibited. We have systems in place to detect such activity. Any user found attempting to manipulate the system will have all their points forfeited and will be permanently banned from the airdrop.',
+    },
+    {
+        question: 'When is the airdrop?',
+        answer: 'The exact date of the airdrop will be announced after the points accumulation phase concludes. Please follow our official channels on X and Telegram for the latest news and announcements.',
+    },
+    {
+      question: 'How will I claim my airdrop?',
+      answer: 'Detailed instructions on how to claim your token airdrop will be provided closer to the distribution date. The process will be simple and will be tied to the Solana wallet you used to earn points.',
+    },
+  ];
+
   return (
     <div className="flex min-h-screen flex-col">
       <AppHeader />
@@ -110,6 +134,33 @@ export default function HomePage() {
                   </CardContent>
                 </Card>
               ))}
+            </div>
+          </div>
+        </section>
+
+        <section id="faq" className="w-full py-12 md:py-24 lg:py-32 border-t">
+          <div className="container px-4 md:px-6">
+            <div className="mx-auto max-w-3xl text-center">
+              <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl font-headline">
+                Frequently Asked Questions
+              </h2>
+              <p className="mt-4 text-muted-foreground md:text-xl/relaxed">
+                Everything you need to know about the EXNUS POINTS airdrop.
+              </p>
+            </div>
+            <div className="mx-auto max-w-3xl mt-12">
+              <Accordion type="single" collapsible className="w-full">
+                {faqItems.map((item, index) => (
+                  <AccordionItem key={index} value={`item-${index}`}>
+                    <AccordionTrigger className="text-left font-semibold hover:no-underline">
+                      {item.question}
+                    </AccordionTrigger>
+                    <AccordionContent className="text-base text-muted-foreground">
+                      {item.answer}
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
             </div>
           </div>
         </section>
