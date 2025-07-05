@@ -7,11 +7,11 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { AppHeader } from '@/components/shared/header';
 import { AppFooter } from '@/components/shared/footer';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { CheckCircle, Gift, Zap } from 'lucide-react';
+import { CheckCircle, Gift, Zap, Loader2 } from 'lucide-react';
 import { DynamicWalletButton } from '@/components/shared/dynamic-wallet-button';
 
 export default function HomePage() {
-  const { connected } = useWallet();
+  const { connected, connecting } = useWallet();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -34,6 +34,26 @@ export default function HomePage() {
     }
   }, [connected, router]);
 
+  // Show a loading/redirecting screen if the wallet is connecting or already connected.
+  // This prevents the homepage content from flashing for returning users.
+  if (connecting || connected) {
+    return (
+      <div className="flex min-h-screen flex-col">
+        <AppHeader />
+        <main className="flex-grow flex items-center justify-center">
+          <div className="flex flex-col items-center justify-center text-center">
+            <Loader2 className="h-12 w-12 animate-spin text-accent" />
+            <p className="mt-4 text-muted-foreground">
+              {connecting ? 'Connecting to wallet...' : 'Redirecting to dashboard...'}
+            </p>
+          </div>
+        </main>
+        <AppFooter />
+      </div>
+    );
+  }
+
+  // Render the full homepage for new/disconnected users.
   const features = [
     {
       icon: <Gift className="h-8 w-8 text-accent" />,

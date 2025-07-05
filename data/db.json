@@ -99,6 +99,26 @@
         "username": "B23L...DyYX",
         "referralBonusProcessed": false
       }
+    ],
+    [
+      "hXwhATANYGYAVXrkk3X9rmSqPc63hhtTsrca9vrC5xe",
+      {
+        "publicKey": "hXwhATANYGYAVXrkk3X9rmSqPc63hhtTsrca9vrC5xe",
+        "points": 0,
+        "miningEndTime": null,
+        "tasksCompleted": {
+          "task1": false,
+          "task2": false,
+          "task3": false
+        },
+        "referralCode": "827387",
+        "referredBy": null,
+        "referredUsersCount": 0,
+        "referralBonus": 0,
+        "lastClaimed": null,
+        "username": "hXwh...C5xe",
+        "referralBonusProcessed": false
+      }
     ]
   ],
   "referralCodeToPublicKey": [
@@ -121,6 +141,10 @@
     [
       "304105",
       "B23Lt4oFVzVYsqnUNkyz1yjzbobZXDik3Cbt8PQgDyYX"
+    ],
+    [
+      "827387",
+      "hXwhATANYGYAVXrkk3X9rmSqPc63hhtTsrca9vrC5xe"
     ]
   ]
 }
