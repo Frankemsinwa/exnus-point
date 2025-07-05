@@ -55,11 +55,13 @@ export default function HomePage() {
     <div className="flex min-h-screen flex-col">
       <AppHeader />
       <main className="flex-grow">
-        <section className="w-full py-12 md:py-24 lg:py-32 xl:py-48 bg-grid-white/[0.05]">
-          <div className="container px-4 md:px-6">
+        <section className="relative w-full bg-hero-background bg-cover bg-center py-12 md:py-24 lg:py-32 xl:py-48">
+          <div className="absolute inset-0 bg-black/70" />
+          <div className="absolute inset-0 bg-grid-white/[0.05]" />
+          <div className="container relative px-4 md:px-6">
             <div className="flex flex-col items-center space-y-4 text-center">
               <div className="space-y-2">
-                <h1 className="text-4xl font-bold tracking-tighter sm:text-5xl md:text-6xl lg:text-7xl font-headline bg-clip-text text-transparent bg-gradient-to-b from-neutral-50 to-neutral-400">
+                <h1 className="bg-gradient-to-b from-neutral-50 to-neutral-400 bg-clip-text text-4xl font-bold tracking-tighter text-transparent sm:text-5xl md:text-6xl lg:text-7xl font-headline">
                   Welcome to EXNUS POINTS
                 </h1>
                 <p className="mx-auto max-w-[700px] text-muted-foreground md:text-xl">
@@ -77,7 +79,7 @@ export default function HomePage() {
           <div className="container px-4 md:px-6">
             <div className="mx-auto grid max-w-5xl items-center gap-6 py-12 lg:grid-cols-3 lg:gap-12">
               {features.map((feature) => (
-                <Card key={feature.title} className="bg-secondary border-none transform transition-transform duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-accent/10">
+                <Card key={feature.title} className="transform border-none bg-secondary transition-transform duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-accent/10">
                   <CardHeader className="flex flex-row items-center gap-4">
                     {feature.icon}
                     <CardTitle className="font-headline">{feature.title}</CardTitle>
@@ -91,7 +93,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        <section className="w-full py-12 md:py-24 lg:py-32 bg-secondary">
+        <section className="w-full bg-secondary py-12 md:py-24 lg:py-32">
           <div className="container grid items-center justify-center gap-4 px-4 text-center md:px-6">
             <div className="space-y-3">
               <h2 className="text-3xl font-bold tracking-tighter md:text-4xl/tight font-headline">
