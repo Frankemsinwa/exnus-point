@@ -26,6 +26,30 @@ type DBData = {
 
 const dbPath = path.join(process.cwd(), 'data', 'db.json');
 let dbCache: DBData | null = null;
+let dbLock = Promise.resolve();
+
+// This function creates a mutex to ensure that database write operations are serialized.
+// It prevents race conditions where multiple requests try to write to the db.json file at the same time.
+async function withDbLock<T>(fn: () => Promise<T>): Promise<T> {
+    // Wait for the previous operation to finish
+    await dbLock;
+    
+    let releaseLock: () => void;
+    // Set up the next lock promise. Subsequent calls will wait for this promise.
+    dbLock = new Promise(resolve => {
+        releaseLock = resolve;
+    });
+
+    try {
+        // Execute the database operation
+        const result = await fn();
+        return result;
+    } finally {
+        // Release the lock for the next operation in the queue
+        releaseLock!();
+    }
+}
+
 
 async function readDb(): Promise<DBData> {
     if (dbCache) return dbCache;
@@ -47,7 +71,6 @@ async function readDb(): Promise<DBData> {
                 users: new Map(),
                 referralCodeToPublicKey: new Map()
             };
-            await writeDb(dbCache);
             return dbCache;
         }
         throw error;
@@ -82,41 +105,51 @@ const getOrCreateUser = async (publicKey: string, referralCode?: string | null):
         return data.users.get(publicKey)!;
     }
 
-    const newReferralCode = generateUniqueReferralCode(data);
-    const username = `${publicKey.slice(0, 4)}...${publicKey.slice(-4)}`;
-    
-    const newUser: User = {
-        publicKey,
-        points: 0,
-        miningEndTime: null,
-        tasksCompleted: { task1: false, task2: false, task3: false },
-        referralCode: newReferralCode,
-        referredBy: null,
-        referredUsersCount: 0,
-        referralBonus: 0,
-        lastClaimed: null,
-        username,
-        referralBonusProcessed: false,
-    };
+    // User doesn't exist, we need to write. Acquire lock.
+    return withDbLock(async () => {
+        // Re-read data inside lock to handle race condition where user was created
+        // between the initial check and acquiring the lock.
+        const lockedData = await readDb();
+        if (lockedData.users.has(publicKey)) {
+            return lockedData.users.get(publicKey)!;
+        }
 
-    if (referralCode) {
-        const referrerPublicKey = data.referralCodeToPublicKey.get(referralCode);
+        const newReferralCode = generateUniqueReferralCode(lockedData);
+        const username = `${publicKey.slice(0, 4)}...${publicKey.slice(-4)}`;
         
-        if (referrerPublicKey && referrerPublicKey !== publicKey) {
-            const referrer = data.users.get(referrerPublicKey);
-            if (referrer) {
-                newUser.referredBy = referrerPublicKey;
-                referrer.referredUsersCount += 1;
-                data.users.set(referrerPublicKey, referrer);
+        const newUser: User = {
+            publicKey,
+            points: 0,
+            miningEndTime: null,
+            tasksCompleted: { task1: false, task2: false, task3: false },
+            referralCode: newReferralCode,
+            referredBy: null,
+            referredUsersCount: 0,
+            referralBonus: 0,
+            lastClaimed: null,
+            username,
+            referralBonusProcessed: false,
+        };
+
+        if (referralCode) {
+            const referrerPublicKey = lockedData.referralCodeToPublicKey.get(referralCode);
+            
+            if (referrerPublicKey && referrerPublicKey !== publicKey) {
+                const referrer = lockedData.users.get(referrerPublicKey);
+                if (referrer) {
+                    newUser.referredBy = referrerPublicKey;
+                    referrer.referredUsersCount += 1;
+                    lockedData.users.set(referrerPublicKey, referrer);
+                }
             }
         }
-    }
 
-    data.users.set(publicKey, newUser);
-    data.referralCodeToPublicKey.set(newReferralCode, publicKey);
-    
-    await writeDb(data);
-    return newUser;
+        lockedData.users.set(publicKey, newUser);
+        lockedData.referralCodeToPublicKey.set(newReferralCode, publicKey);
+        
+        await writeDb(lockedData);
+        return newUser;
+    });
 };
 
 const getUserByPublicKey = async (publicKey: string): Promise<User | null> => {
@@ -125,18 +158,20 @@ const getUserByPublicKey = async (publicKey: string): Promise<User | null> => {
 };
 
 const updateUser = async (publicKey: string, updates: Partial<User>): Promise<User | null> => {
-    const data = await readDb();
-    const user = data.users.get(publicKey);
+    return withDbLock(async () => {
+        const data = await readDb();
+        const user = data.users.get(publicKey);
 
-    if (!user) {
-        return null;
-    }
+        if (!user) {
+            return null;
+        }
 
-    const updatedUser = { ...user, ...updates };
-    data.users.set(publicKey, updatedUser);
+        const updatedUser = { ...user, ...updates };
+        data.users.set(publicKey, updatedUser);
 
-    await writeDb(data);
-    return updatedUser;
+        await writeDb(data);
+        return updatedUser;
+    });
 };
 
 const getLeaderboard = async (): Promise<User[]> => {
