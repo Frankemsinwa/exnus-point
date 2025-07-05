@@ -1,7 +1,8 @@
+
 "use client";
 
-import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import Link from "next/link";
+import { DynamicWalletButton } from "./dynamic-wallet-button";
 
 export function AppHeader() {
   return (
@@ -13,7 +14,7 @@ export function AppHeader() {
           </Link>
         </div>
         <div className="flex flex-1 items-center justify-end space-x-2">
-          <WalletMultiButton />
+          <DynamicWalletButton />
         </div>
       </div>
     </header>

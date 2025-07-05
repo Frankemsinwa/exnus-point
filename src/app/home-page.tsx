@@ -1,13 +1,14 @@
+
 "use client";
 
 import { useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useWallet } from '@solana/wallet-adapter-react';
-import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { AppHeader } from '@/components/shared/header';
 import { AppFooter } from '@/components/shared/footer';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CheckCircle, Gift, Zap } from 'lucide-react';
+import { DynamicWalletButton } from '@/components/shared/dynamic-wallet-button';
 
 export default function HomePage() {
   const { connected } = useWallet();
@@ -69,7 +70,7 @@ export default function HomePage() {
                 </p>
               </div>
               <div className="space-x-4 pt-6">
-                <WalletMultiButton style={{}} />
+                <DynamicWalletButton style={{}} />
               </div>
             </div>
           </div>
@@ -104,7 +105,7 @@ export default function HomePage() {
               </p>
             </div>
             <div className="mx-auto w-full max-w-sm space-y-2">
-               <WalletMultiButton style={{ width: '100%' }} />
+               <DynamicWalletButton style={{ width: '100%' }} />
             </div>
           </div>
         </section>
