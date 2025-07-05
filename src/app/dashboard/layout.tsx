@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
@@ -43,6 +43,12 @@ export default function DashboardLayout({
   const { connected, connecting } = useWallet();
   const router = useRouter();
   const pathname = usePathname();
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
 
   useEffect(() => {
     if (!connecting && !connected) {
@@ -98,7 +104,7 @@ export default function DashboardLayout({
             </SheetContent>
           </Sheet>
           <div className="w-full flex-1" />
-          <WalletMultiButton />
+          {isClient && <WalletMultiButton />}
         </header>
         <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6 bg-background">
           {children}
