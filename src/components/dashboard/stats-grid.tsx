@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, BarChart, Gem } from 'lucide-react';
+import { Skeleton } from "../ui/skeleton";
 
 type Stats = {
   totalPointsMined: number;
@@ -7,7 +8,26 @@ type Stats = {
   userRank: number;
 }
 
-export function StatsGrid({ stats }: { stats: Stats }) {
+export function StatsGrid({ stats }: { stats: Stats | null }) {
+    if (!stats) {
+        return (
+            <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-1 h-full">
+                {[...Array(3)].map((_, i) => (
+                    <Card key={i} className="flex flex-col flex-grow">
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                             <Skeleton className="h-4 w-1/3" />
+                             <Skeleton className="h-4 w-4" />
+                        </CardHeader>
+                        <CardContent>
+                            <Skeleton className="h-7 w-1/2" />
+                            <Skeleton className="h-3 w-2/3 mt-2" />
+                        </CardContent>
+                    </Card>
+                ))}
+            </div>
+        );
+    }
+
   const statItems = [
     {
       title: "Total Points Mined",

@@ -45,7 +45,7 @@
       {
         "publicKey": "9Kqt28pfMVBsBvXYYnYQCT2BZyorAwzbR6dUmgQfsZYW",
         "points": 1000,
-        "miningEndTime": null,
+        "miningEndTime": 1751829066031,
         "tasksCompleted": {
           "task1": true,
           "task2": true,

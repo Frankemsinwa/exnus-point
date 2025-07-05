@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useWallet } from "@solana/wallet-adapter-react";
 import Link from "next/link";
@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2, LayoutDashboard, Gift, Trophy, Menu } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { DynamicWalletButton } from "@/components/shared/dynamic-wallet-button";
+import { useToast } from "@/hooks/use-toast";
 
 const navItems = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
@@ -41,9 +42,22 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { connected, connecting } = useWallet();
+  const { connected, connecting, publicKey } = useWallet();
   const router = useRouter();
   const pathname = usePathname();
+  const { toast } = useToast();
+  const prevPublicKey = useRef(publicKey?.toBase58());
+
+  useEffect(() => {
+    const currentPublicKey = publicKey?.toBase58();
+    if (currentPublicKey && currentPublicKey !== prevPublicKey.current) {
+        toast({ title: "Wallet Connected" });
+    }
+    if (!currentPublicKey && prevPublicKey.current) {
+        toast({ title: "Wallet Disconnected" });
+    }
+    prevPublicKey.current = currentPublicKey;
+  }, [publicKey, toast]);
 
   useEffect(() => {
     if (!connecting && !connected) {
