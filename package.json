@@ -7,7 +7,7 @@
     "genkit:dev": "genkit start -- tsx src/ai/dev.ts",
     "genkit:watch": "genkit start -- tsx --watch src/ai/dev.ts",
     "build": "next build",
-    "start": "next start",
+    "start": "node server.js",
     "lint": "next lint",
     "typecheck": "tsc --noEmit"
   },
@@ -50,6 +50,7 @@
     "genkit": "^1.13.0",
     "lucide-react": "^0.475.0",
     "next": "15.3.3",
+    "next-themes": "^0.3.0",
     "patch-package": "^8.0.0",
     "proper-lockfile": "^4.1.2",
     "react": "^18.3.1",
