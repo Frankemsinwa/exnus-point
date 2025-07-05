@@ -1,6 +1,5 @@
 import { promises as fs } from 'fs';
 import path from 'path';
-import { lock, unlock } from 'proper-lockfile';
 
 export type User = {
     publicKey: string;
@@ -21,48 +20,55 @@ export type User = {
 };
 
 type DBData = {
-    users: [string, User][];
-    referralCodeToPublicKey: [string, string][];
+    users: Map<string, User>;
+    referralCodeToPublicKey: Map<string, string>;
 };
 
 const dbPath = path.join(process.cwd(), 'data', 'db.json');
+let dbCache: DBData | null = null;
 
-async function withDb<T>(op: (data: DBData) => Promise<{ result: T, newData?: DBData }>): Promise<T> {
-    await fs.mkdir(path.dirname(dbPath), { recursive: true });
-
-    try {
-        await fs.access(dbPath);
-    } catch {
-        const initialDb: DBData = { users: [], referralCodeToPublicKey: [] };
-        await fs.writeFile(dbPath, JSON.stringify(initialDb, null, 2), 'utf-8');
-    }
+async function readDb(): Promise<DBData> {
+    if (dbCache) return dbCache;
 
     try {
-        await lock(dbPath, { 
-            retries: { retries: 5, factor: 1.2, minTimeout: 100, maxTimeout: 500 },
-            stale: 10000, // Lock is considered stale after 10s
-        });
+        await fs.mkdir(path.dirname(dbPath), { recursive: true });
         const fileContent = await fs.readFile(dbPath, 'utf-8');
-        const dbData = JSON.parse(fileContent);
-        const { result, newData } = await op(dbData);
-        if (newData) {
-            await fs.writeFile(dbPath, JSON.stringify(newData, null, 2), 'utf-8');
+        const data = JSON.parse(fileContent);
+        // Convert arrays to Maps for easier lookup
+        dbCache = {
+            users: new Map(data.users || []),
+            referralCodeToPublicKey: new Map(data.referralCodeToPublicKey || [])
+        };
+        return dbCache!;
+    } catch (error) {
+        // If file doesn't exist or is empty, initialize with empty maps
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT' || error instanceof SyntaxError) {
+             dbCache = {
+                users: new Map(),
+                referralCodeToPublicKey: new Map()
+            };
+            await writeDb(dbCache);
+            return dbCache;
         }
-        return result;
-    } finally {
-        try {
-            await unlock(dbPath);
-        } catch {}
+        throw error;
     }
+}
+
+async function writeDb(data: DBData): Promise<void> {
+    const dataToWrite = {
+        users: Array.from(data.users.entries()),
+        referralCodeToPublicKey: Array.from(data.referralCodeToPublicKey.entries())
+    };
+    await fs.writeFile(dbPath, JSON.stringify(dataToWrite, null, 2), 'utf-8');
+    dbCache = data; // Update cache
 }
 
 const generateUniqueReferralCode = (data: DBData): string => {
     let code: string;
     let isUnique = false;
-    const referralCodes = new Set(data.referralCodeToPublicKey.map(([c]) => c));
     do {
         code = Math.floor(100000 + Math.random() * 900000).toString();
-        if (!referralCodes.has(code)) {
+        if (!data.referralCodeToPublicKey.has(code)) {
             isUnique = true;
         }
     } while (!isUnique);
@@ -70,106 +76,94 @@ const generateUniqueReferralCode = (data: DBData): string => {
 };
 
 const getOrCreateUser = async (publicKey: string, referralCode?: string | null): Promise<User> => {
-    return withDb(async (data) => {
-        const userMap = new Map(data.users);
-        if (userMap.has(publicKey)) {
-            return { result: userMap.get(publicKey)! };
-        }
+    const data = await readDb();
+    
+    if (data.users.has(publicKey)) {
+        return data.users.get(publicKey)!;
+    }
 
-        const newReferralCode = generateUniqueReferralCode(data);
-        const username = `${publicKey.slice(0, 4)}...${publicKey.slice(-4)}`;
+    const newReferralCode = generateUniqueReferralCode(data);
+    const username = `${publicKey.slice(0, 4)}...${publicKey.slice(-4)}`;
+    
+    const newUser: User = {
+        publicKey,
+        points: 0,
+        miningEndTime: null,
+        tasksCompleted: { task1: false, task2: false, task3: false },
+        referralCode: newReferralCode,
+        referredBy: null,
+        referredUsersCount: 0,
+        referralBonus: 0,
+        lastClaimed: null,
+        username,
+        referralBonusProcessed: false,
+    };
+
+    if (referralCode) {
+        const referrerPublicKey = data.referralCodeToPublicKey.get(referralCode);
         
-        const newUser: User = {
-            publicKey,
-            points: 0,
-            miningEndTime: null,
-            tasksCompleted: { task1: false, task2: false, task3: false },
-            referralCode: newReferralCode,
-            referredBy: null,
-            referredUsersCount: 0,
-            referralBonus: 0,
-            lastClaimed: null,
-            username,
-            referralBonusProcessed: false,
-        };
-
-        if (referralCode) {
-            const referralMap = new Map(data.referralCodeToPublicKey);
-            const referrerPublicKey = referralMap.get(referralCode);
-            
-            if (referrerPublicKey && referrerPublicKey !== publicKey) {
-                const referrer = userMap.get(referrerPublicKey);
-                if (referrer) {
-                    newUser.referredBy = referrerPublicKey;
-                    referrer.referredUsersCount += 1;
-                    userMap.set(referrerPublicKey, referrer);
-                }
+        if (referrerPublicKey && referrerPublicKey !== publicKey) {
+            const referrer = data.users.get(referrerPublicKey);
+            if (referrer) {
+                newUser.referredBy = referrerPublicKey;
+                referrer.referredUsersCount += 1;
+                data.users.set(referrerPublicKey, referrer);
             }
         }
+    }
 
-        userMap.set(publicKey, newUser);
-        data.users = Array.from(userMap.entries());
-        data.referralCodeToPublicKey.push([newReferralCode, publicKey]);
-
-        return { result: newUser, newData: data };
-    });
+    data.users.set(publicKey, newUser);
+    data.referralCodeToPublicKey.set(newReferralCode, publicKey);
+    
+    await writeDb(data);
+    return newUser;
 };
 
 const getUserByPublicKey = async (publicKey: string): Promise<User | null> => {
-    return withDb(async (data) => {
-        const userMap = new Map(data.users);
-        const user = userMap.get(publicKey) || null;
-        return { result: user };
-    });
+    const data = await readDb();
+    return data.users.get(publicKey) || null;
 };
 
 const updateUser = async (publicKey: string, updates: Partial<User>): Promise<User | null> => {
-    return withDb(async (data) => {
-        const userMap = new Map(data.users);
-        const user = userMap.get(publicKey);
+    const data = await readDb();
+    const user = data.users.get(publicKey);
 
-        if (!user) {
-            return { result: null };
-        }
+    if (!user) {
+        return null;
+    }
 
-        const updatedUser = { ...user, ...updates };
-        userMap.set(publicKey, updatedUser);
-        data.users = Array.from(userMap.entries());
+    const updatedUser = { ...user, ...updates };
+    data.users.set(publicKey, updatedUser);
 
-        return { result: updatedUser, newData: data };
-    });
+    await writeDb(data);
+    return updatedUser;
 };
 
 const getLeaderboard = async (): Promise<User[]> => {
-    return withDb(async (data) => {
-        const users = Array.from(new Map(data.users).values());
-        const sortedUsers = users.sort((a, b) => b.points - a.points).slice(0, 100);
-        return { result: sortedUsers };
-    });
+    const data = await readDb();
+    const users = Array.from(data.users.values());
+    const sortedUsers = users.sort((a, b) => b.points - a.points);
+    return sortedUsers;
 };
 
 const getTotalMined = async (): Promise<number> => {
-    return withDb(async (data) => {
-        const users = Array.from(new Map(data.users).values());
-        const total = users.reduce((sum, user) => sum + user.points, 0);
-        return { result: total };
-    });
+    const data = await readDb();
+    const users = Array.from(data.users.values());
+    const total = users.reduce((sum, user) => sum + user.points, 0);
+    return total;
 };
 
 const getActiveMiners = async (): Promise<number> => {
-    return withDb(async (data) => {
-        const users = Array.from(new Map(data.users).values());
-        const now = Date.now();
-        const activeCount = users.filter(user => user.miningEndTime && user.miningEndTime > now).length;
-        return { result: activeCount };
-    });
+    const data = await readDb();
+    const users = Array.from(data.users.values());
+    const now = Date.now();
+    const activeCount = users.filter(user => user.miningEndTime && user.miningEndTime > now).length;
+    return activeCount;
 };
 
 const getAllUsers = async (): Promise<User[]> => {
-    return withDb(async (data) => {
-        const users = Array.from(new Map(data.users).values());
-        return { result: users };
-    });
+    const data = await readDb();
+    return Array.from(data.users.values());
 };
 
 export const db = {
