@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
@@ -103,6 +104,7 @@ export function MiningCard({ user, onRewardClaimed }: MiningCardProps) {
   }, [publicKey, onRewardClaimed, toast]);
 
   const allTasksCompleted = Object.values(tasksCompleted).every(Boolean);
+  const hasMinedBefore = user.lastClaimed !== null;
 
   const handleActivateMining = useCallback(async () => {
     if (!publicKey || !signMessage) {
@@ -144,7 +146,10 @@ export function MiningCard({ user, onRewardClaimed }: MiningCardProps) {
         <CardTitle className="font-headline text-2xl">Mining Hub</CardTitle>
         <CardDescription>Your available points balance: <span className="text-accent font-bold">{user.points.toLocaleString()} POINTS</span></CardDescription>
         <CardDescription className="pt-2 text-xs">
-            Complete tasks, then activate mining for a 24-hour session. Points are automatically claimed when the session ends.
+            { allTasksCompleted && hasMinedBefore 
+                ? "You're all set! Start your next mining session anytime."
+                : "Complete tasks, then activate mining for a 24-hour session. Points are automatically claimed when the session ends."
+            }
         </CardDescription>
       </CardHeader>
       <CardContent className="flex-grow flex flex-col items-center justify-center text-center gap-6">
@@ -171,46 +176,58 @@ export function MiningCard({ user, onRewardClaimed }: MiningCardProps) {
             </div>
           </div>
         ) : (
-          <div className="w-full space-y-4">
-            <h3 className="text-lg font-semibold">Complete tasks to start mining</h3>
-            <div className="space-y-3 text-left max-w-sm mx-auto">
-              {tasks.map(task => {
-                const isCompleted = tasksCompleted[task.id as keyof typeof tasksCompleted];
-                const isVerifying = verifyingTasks.has(task.id);
-
-                return (
-                    <div key={task.id} className="flex items-center justify-between bg-muted p-3 rounded-md">
-                        <div className="flex items-center gap-3">
-                            <task.icon className="h-5 w-5 text-muted-foreground" />
-                            <span className="text-sm font-medium leading-none">
-                                {task.label}
-                            </span>
-                        </div>
-                        <Button
-                            size="sm"
-                            variant={isCompleted ? "ghost" : "secondary"}
-                            onClick={() => handleCompleteTask(task.id as 'task1' | 'task2' | 'task3', task.link)}
-                            disabled={isCompleted || isVerifying}
-                        >
-                            {isCompleted ? (
-                                <>
-                                    <Check className="mr-2 h-4 w-4" />
-                                    Completed
-                                </>
-                            ) : isVerifying ? (
-                                <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    Verifying...
-                                </>
-                            ) : (
-                                'Complete'
-                            )}
-                        </Button>
-                    </div>
-                )
-              })}
+          (allTasksCompleted && hasMinedBefore) ? (
+            <div className="flex flex-col items-center justify-center text-center gap-4 p-6">
+                <div className="p-4 bg-accent/10 rounded-full">
+                    <Zap className="h-12 w-12 text-accent" />
+                </div>
+                <h3 className="text-2xl font-bold font-headline mt-4">Ready For a New Session?</h3>
+                <p className="text-muted-foreground max-w-xs">
+                    You've completed all the initial tasks. Click the button below to start your next 24-hour mining session.
+                </p>
             </div>
-          </div>
+          ) : (
+            <div className="w-full space-y-4">
+                <h3 className="text-lg font-semibold">Complete tasks to start mining</h3>
+                <div className="space-y-3 text-left max-w-sm mx-auto">
+                {tasks.map(task => {
+                    const isCompleted = tasksCompleted[task.id as keyof typeof tasksCompleted];
+                    const isVerifying = verifyingTasks.has(task.id);
+
+                    return (
+                        <div key={task.id} className="flex items-center justify-between bg-muted p-3 rounded-md">
+                            <div className="flex items-center gap-3">
+                                <task.icon className="h-5 w-5 text-muted-foreground" />
+                                <span className="text-sm font-medium leading-none">
+                                    {task.label}
+                                </span>
+                            </div>
+                            <Button
+                                size="sm"
+                                variant={isCompleted ? "ghost" : "secondary"}
+                                onClick={() => handleCompleteTask(task.id as 'task1' | 'task2' | 'task3', task.link)}
+                                disabled={isCompleted || isVerifying}
+                            >
+                                {isCompleted ? (
+                                    <>
+                                        <Check className="mr-2 h-4 w-4" />
+                                        Completed
+                                    </>
+                                ) : isVerifying ? (
+                                    <>
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        Verifying...
+                                    </>
+                                ) : (
+                                    'Complete'
+                                )}
+                            </Button>
+                        </div>
+                    )
+                })}
+                </div>
+            </div>
+          )
         )}
       </CardContent>
       <CardFooter>
@@ -230,3 +247,4 @@ export function MiningCard({ user, onRewardClaimed }: MiningCardProps) {
     </Card>
   );
 }
+
