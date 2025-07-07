@@ -123,7 +123,7 @@ export async function getReferralPageData(publicKey: string) {
     if (!publicKey) return null;
     const user = await db.getUser(publicKey);
     
-    const referralLink = `https://points.exnus.org/join?ref=${user.referralCode}`;
+    const referralLink = `https://points.exnus.xyz/join?ref=${user.referralCode}`;
 
     return {
         referralLink,

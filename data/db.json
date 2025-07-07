@@ -24,8 +24,8 @@
       "FNzf4sZ7GZHJYEa3FngDtjdJSR45h2Qsq8RbHinDjc1t",
       {
         "publicKey": "FNzf4sZ7GZHJYEa3FngDtjdJSR45h2Qsq8RbHinDjc1t",
-        "points": 1000,
-        "miningEndTime": 1751826121211,
+        "points": 2000,
+        "miningEndTime": null,
         "tasksCompleted": {
           "task1": true,
           "task2": true,
@@ -35,7 +35,7 @@
         "referredBy": null,
         "referredUsersCount": 0,
         "referralBonus": 0,
-        "lastClaimed": 1751739675451,
+        "lastClaimed": 1751826138020,
         "username": "FNzf...jc1t",
         "referralBonusProcessed": false
       }
@@ -44,8 +44,8 @@
       "9Kqt28pfMVBsBvXYYnYQCT2BZyorAwzbR6dUmgQfsZYW",
       {
         "publicKey": "9Kqt28pfMVBsBvXYYnYQCT2BZyorAwzbR6dUmgQfsZYW",
-        "points": 1000,
-        "miningEndTime": 1751829066031,
+        "points": 2000,
+        "miningEndTime": 1751939638875,
         "tasksCompleted": {
           "task1": true,
           "task2": true,
@@ -55,7 +55,7 @@
         "referredBy": null,
         "referredUsersCount": 0,
         "referralBonus": 0,
-        "lastClaimed": 1751739712010,
+        "lastClaimed": 1751853223482,
         "username": "9Kqt...sZYW",
         "referralBonusProcessed": false
       }
